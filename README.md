@@ -11,13 +11,6 @@
 
 ---
 
-## 🎥 Pitch de Apresentação
-Assista ao vídeo de apresentação do projeto, abordando o contexto, a solução proposta, a inovação e a necessidade do mercado:
-
-👉 **[Insira o link do seu vídeo Não Listado/Público do YouTube aqui]**
-
----
-
 ## 📖 Sobre o Projeto
 
 O mercado imobiliário exige agilidade e precisão, mas corretores frequentemente perdem produtividade gerenciando informações fragmentadas em sistemas densos, resultando no esfriamento de *leads* e perda de vendas. 
