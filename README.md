@@ -71,18 +71,6 @@ A arquitetura do sistema segue o modelo **Service-Repository Pattern**, isolando
 *   Node.js (v20+) e npm/yarn
 *   Chaves de API configuradas (`.env`) para Asaas e Provedores de IA
 
-### Backend (Laravel)
-```bash
-# Clone o repositório
-git clone [https://github.com/seu-usuario/ia-imob.git](https://github.com/seu-usuario/ia-imob.git)
-cd ia-imob/ai-backendd-imobiliaria
-
-# Instale as dependências
-composer install
-
-# Configure o ambiente
-cp .env.example .env
-php artisan key:generate
 
 # Inicie os containers (Sail) e rode as migrations
 ./vendor/bin/sail up -d
