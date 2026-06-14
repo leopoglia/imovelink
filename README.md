@@ -55,16 +55,3 @@ A arquitetura do sistema segue o modelo **Service-Repository Pattern**, isolando
 *   **Inteligência Artificial:** LLMs (DeepSeek / OpenAI)
 *   **Pagamentos:** Asaas API
 
----
-
-## ⚙️ Como Executar o Projeto (Ambiente de Desenvolvimento)
-
-### Pré-requisitos
-*   Docker e Docker Compose (Laravel Sail)
-*   Node.js (v20+) e npm/yarn
-*   Chaves de API configuradas (`.env`) para Asaas e Provedores de IA
-
-
-# Inicie os containers (Sail) e rode as migrations
-./vendor/bin/sail up -d
-./vendor/bin/sail artisan migrate --seed
