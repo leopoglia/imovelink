@@ -2254,3 +2254,27 @@ textarea.field-control {
   border-radius: 50%;
   background: var(--accent);
 }
+.crawler-source-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.crawler-source-toggle svg:last-child {
+  transition: transform 160ms;
+  color: var(--muted);
+}
+.crawler-source-toggle svg.is-open {
+  transform: rotate(180deg);
+}
+.crawler-source-listings {
+  flex: 1 0 100%;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--field-border);
+}

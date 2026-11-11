@@ -6,6 +6,7 @@ import {
   Globe,
   Internet,
   Refresh,
+  NavArrowDown,
   RefreshDouble,
   Trash,
 } from "iconoir-react";
@@ -54,6 +55,7 @@ export default function CrawlerPage() {
   const [nome, setNome] = useState("");
   const [analise, setAnalise] = useState<Analise | null>(null);
   const [maxPages, setMaxPages] = useState(5);
+  const [fonteAberta, setFonteAberta] = useState<string | null>(null);
   const [erro, setErro] = useState("");
 
   const podeGerenciar = hasPermission(currentUser.role, "crawler:manage");
@@ -306,10 +308,25 @@ export default function CrawlerPage() {
               aria-busy={ocupada(fonte.id)}
             >
               <div>
-                <strong>
-                  <Globe aria-hidden="true" width={14} height={14} />{" "}
-                  {fonte.name}
-                </strong>
+                <button
+                  type="button"
+                  className="crawler-source-toggle"
+                  aria-expanded={fonteAberta === fonte.id}
+                  onClick={() =>
+                    setFonteAberta(fonteAberta === fonte.id ? null : fonte.id)
+                  }
+                >
+                  <Globe aria-hidden="true" width={14} height={14} />
+                  <strong>{fonte.name}</strong>
+                  <NavArrowDown
+                    aria-hidden="true"
+                    width={14}
+                    height={14}
+                    className={
+                      fonteAberta === fonte.id ? "is-open" : undefined
+                    }
+                  />
+                </button>
                 <a
                   href={fonte.listUrl}
                   target="_blank"
@@ -358,7 +375,9 @@ export default function CrawlerPage() {
                   <Refresh aria-hidden="true" width={14} height={14} />
                   {ocupada(fonte.id) && emAcao?.action === "COLLECT"
                     ? "Coletando…"
-                    : "Coletar"}
+                    : fonte.lastCrawledAt
+                      ? "Atualizar"
+                      : "Coletar"}
                 </button>
                 <button
                   type="button"
@@ -386,6 +405,75 @@ export default function CrawlerPage() {
                   Remover
                 </button>
               </div>
+
+              {fonteAberta === fonte.id && (
+                <div className="crawler-source-listings">
+                  {(() => {
+                    const daFonte = anuncios.filter(
+                      (anuncio) => anuncio.sourceId === fonte.id,
+                    );
+                    if (!daFonte.length)
+                      return (
+                        <p className="ai-search-note">
+                          Nada coletado ainda nesta fonte.
+                        </p>
+                      );
+                    return (
+                      <div className="crawler-table-scroll">
+                        <table className="crawler-table">
+                          <caption className="sr-only">
+                            Anúncios indexados desta fonte
+                          </caption>
+                          <thead>
+                            <tr>
+                              <th scope="col">Título</th>
+                              <th scope="col">Preço</th>
+                              <th scope="col">Local</th>
+                              <th scope="col">Quartos</th>
+                              <th scope="col">Área</th>
+                              <th scope="col">Visto em</th>
+                              <th scope="col">Link</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {daFonte.map((anuncio) => (
+                              <tr key={anuncio.id}>
+                                <td>{anuncio.title}</td>
+                                <td>{moeda(anuncio.price)}</td>
+                                <td>
+                                  {[anuncio.neighborhood, anuncio.city]
+                                    .filter(Boolean)
+                                    .join(", ") || "—"}
+                                </td>
+                                <td>{anuncio.bedrooms ?? "—"}</td>
+                                <td>
+                                  {anuncio.areaTotal
+                                    ? `${anuncio.areaTotal} m²`
+                                    : "—"}
+                                </td>
+                                <td>
+                                  {new Date(
+                                    anuncio.lastSeenAt,
+                                  ).toLocaleDateString("pt-BR")}
+                                </td>
+                                <td>
+                                  <a
+                                    href={anuncio.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer nofollow"
+                                  >
+                                    abrir
+                                  </a>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </li>
           ))}
         </ul>
