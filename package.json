@@ -14,6 +14,7 @@
     "db:check": "node --env-file-if-exists=.env.local scripts/database.mjs check",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/database.mjs migrate",
     "auth:set-password": "node --env-file-if-exists=.env.local scripts/set-password.mjs",
+    "auth:smoke": "node --env-file-if-exists=.env.local scripts/auth-smoke.mjs",
     "ai:check": "node --env-file-if-exists=.env.local scripts/check-ai.mjs"
   },
   "dependencies": {

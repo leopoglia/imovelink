@@ -52,6 +52,8 @@ Os testes de persistência utilizam dados em memória e não devem alterar o ban
 ```text
 src/app/                  Páginas e APIs do Next.js
 src/components/           Interface reutilizável
+src/lib/                  Utilidades compartilhadas e permissões
+src/store/                Estado de interface
 src/server/services/      Regras de negócio e integração de IA
 src/server/repositories/  Acesso ao armazenamento
 src/server/seeds/         Dados de demonstração
