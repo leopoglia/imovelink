@@ -2107,3 +2107,105 @@ textarea.field-control {
     font-size: 13px;
   }
 }
+
+/* Crawler: cadastro de fontes externas e lista do que foi indexado */
+.crawler-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 12px;
+}
+.crawler-form input {
+  flex: 1 1 280px;
+  padding: 10px 12px;
+  border: 1px solid var(--field-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
+.crawler-form input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: var(--field-focus);
+}
+.crawler-preview {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--field-border);
+}
+.crawler-table-scroll {
+  overflow-x: auto;
+  margin: 12px 0;
+}
+.crawler-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.crawler-table th,
+.crawler-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--field-border);
+  white-space: nowrap;
+}
+.crawler-table th {
+  color: var(--muted);
+  font-weight: 500;
+}
+.crawler-table td:first-child {
+  white-space: normal;
+  max-width: 340px;
+}
+.crawler-sources {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.crawler-source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border: 1px solid var(--field-border);
+  border-radius: 14px;
+}
+.crawler-source > div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.crawler-source strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.crawler-source-url {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.crawler-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.crawler-source-actions button {
+  font-size: 13px;
+  padding: 8px 12px;
+  min-height: 38px;
+}
+@media (max-width: 600px) {
+  .crawler-source,
+  .crawler-source-actions {
+    width: 100%;
+  }
+}

@@ -15,8 +15,8 @@ const TEMPO_LIMITE_MS = 20_000;
 
 export class FetchError extends Error {
   code: string;
-  constructor(code: string) {
-    super("Não foi possível buscar esta página.");
+  constructor(code: string, options?: { cause?: unknown }) {
+    super("Não foi possível buscar esta página.", options);
     this.code = code;
   }
 }
@@ -118,6 +118,8 @@ export async function buscarListagem(
     return { url, html, crawlDelay: regras.crawlDelay };
   } catch (erro) {
     if (erro instanceof FetchError) throw erro;
-    throw new FetchError(prazo.aborted ? "TIMEOUT" : "NETWORK_ERROR");
+    throw new FetchError(prazo.aborted ? "TIMEOUT" : "NETWORK_ERROR", {
+      cause: erro,
+    });
   }
 }

@@ -12,17 +12,25 @@ import {
   LayoutLeft,
   Menu,
   AreaSearch,
+  Internet,
   Xmark,
 } from "iconoir-react";
 import { Brand } from "./brand";
 import { AccountMenu } from "./account-menu";
 import { useTenantStore } from "@/store/tenant-store";
+import { hasPermission } from "@/lib/auth/rbac";
 import { fetchSettings, settingsQueryKey } from "@/lib/settings";
 
 const NAV_ITEMS = [
   { href: "/", label: "Visão geral", icon: LayoutLeft },
   { href: "/imoveis", label: "Imóveis", icon: City },
   { href: "/busca-ia", label: "Busca inteligente", icon: AreaSearch },
+  {
+    href: "/crawler",
+    label: "Crawler",
+    icon: Internet,
+    permission: "crawler:manage" as const,
+  },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -85,7 +93,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className={`sidebar-content ${menuOpen ? "is-open" : ""}`}
         >
           <nav className="sidebar-nav" aria-label="Gestão imobiliária">
-            {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+            {NAV_ITEMS.filter(
+              (item) =>
+                !item.permission ||
+                hasPermission(currentUser.role, item.permission),
+            ).map(({ href, label, icon: Icon }) => {
               const active =
                 href === "/" ? pathname === "/" : pathname?.startsWith(href);
               return (

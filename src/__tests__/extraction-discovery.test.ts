@@ -153,6 +153,45 @@ describe("Descoberta do mapa de extração", () => {
     );
   });
 
+  // As esperas entre tentativas são adiantadas; a suíte não fica lenta por isso.
+  it("tenta de novo quando o provedor está temporariamente indisponível", async () => {
+    vi.useFakeTimers();
+    vi.mocked(generateGeminiJson)
+      .mockRejectedValueOnce(
+        Object.assign(new Error("503"), { code: "PROVIDER_UNAVAILABLE" }),
+      )
+      .mockResolvedValueOnce({
+        text: JSON.stringify(MAPA_DO_MODELO),
+        model: "gemini-teste",
+      });
+    const promessa = descobrirMapaExtracao(HTML, BASE);
+    await vi.advanceTimersByTimeAsync(2000);
+    await expect(promessa).resolves.toMatchObject({ total: 2 });
+    expect(generateGeminiJson).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it("desiste depois das tentativas e propaga a falha", async () => {
+    vi.useFakeTimers();
+    vi.mocked(generateGeminiJson).mockRejectedValue(
+      Object.assign(new Error("503"), { code: "PROVIDER_UNAVAILABLE" }),
+    );
+    const promessa = descobrirMapaExtracao(HTML, BASE);
+    const esperado = expect(promessa).rejects.toThrow();
+    await vi.advanceTimersByTimeAsync(10_000);
+    await esperado;
+    expect(generateGeminiJson).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
+  });
+
+  it("não insiste quando a falha não é temporária", async () => {
+    vi.mocked(generateGeminiJson).mockRejectedValue(
+      Object.assign(new Error("401"), { code: "AUTHENTICATION_FAILED" }),
+    );
+    await expect(descobrirMapaExtracao(HTML, BASE)).rejects.toThrow();
+    expect(generateGeminiJson).toHaveBeenCalledTimes(1);
+  });
+
   it("limita a amostra devolvida para conferência", async () => {
     responder(MAPA_DO_MODELO);
     const { sample, total } = await descobrirMapaExtracao(HTML, BASE);

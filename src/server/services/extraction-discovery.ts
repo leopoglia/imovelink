@@ -100,6 +100,39 @@ function semNulos(bruto: unknown): unknown {
   return saida;
 }
 
+/** Falhas de capacidade do provedor são temporárias e valem nova tentativa. */
+const CODIGOS_TEMPORARIOS = new Set(["PROVIDER_UNAVAILABLE", "RATE_LIMITED"]);
+const ESPERAS_MS = [1500, 4000];
+
+const dormir = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+async function pedirMapaAoModelo(
+  prompt: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  for (let tentativa = 0; ; tentativa++) {
+    try {
+      const { text } = await generateGeminiJson({
+        systemInstruction: INSTRUCAO,
+        prompt,
+        schema: extractionMapJsonSchema,
+        signal,
+      });
+      return text;
+    } catch (erro) {
+      const codigo =
+        erro && typeof erro === "object" && "code" in erro
+          ? String((erro as { code: unknown }).code)
+          : "";
+      const ultima = tentativa >= ESPERAS_MS.length;
+      if (ultima || !CODIGOS_TEMPORARIOS.has(codigo) || signal?.aborted)
+        throw erro;
+      await dormir(ESPERAS_MS[tentativa]);
+    }
+  }
+}
+
 export class DiscoveryError extends Error {
   code: string;
   constructor(code: string) {
@@ -120,12 +153,10 @@ export async function descobrirMapaExtracao(
   const condensado = condensarHtml(html);
   if (!condensado) throw new DiscoveryError("EMPTY_PAGE");
 
-  const { text } = await generateGeminiJson({
-    systemInstruction: INSTRUCAO,
-    prompt: JSON.stringify({ url: baseUrl, html: condensado }),
-    schema: extractionMapJsonSchema,
+  const text = await pedirMapaAoModelo(
+    JSON.stringify({ url: baseUrl, html: condensado }),
     signal,
-  });
+  );
 
   let candidato: ExtractionMap;
   try {
