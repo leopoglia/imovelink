@@ -37,6 +37,25 @@ const schema = z.discriminatedUnion("action", [
     .strict(),
 ]);
 
+/** Códigos técnicos viram explicações acionáveis para quem está na tela. */
+const EXPLICACAO: Record<string, string> = {
+  PAGE_HAS_NO_LISTINGS:
+    "Esta página não traz os anúncios no HTML: eles são carregados por JavaScript depois que o navegador abre o site. O crawler não consegue lê-la.",
+  MAP_MATCHED_NOTHING:
+    "Não consegui identificar os anúncios nesta página. Tente o endereço da listagem completa, com os imóveis já visíveis.",
+  BLOCKED_BY_ROBOTS: "O robots.txt deste site proíbe a leitura desta página.",
+  PRIVATE_HOST: "Endereços internos não podem ser consultados.",
+  UNSUPPORTED_SCHEME: "Informe um endereço http ou https.",
+  INVALID_URL: "O endereço informado não é uma URL válida.",
+  NOT_FOUND: "A página não foi encontrada no site de origem.",
+  NOT_HTML: "O endereço não devolveu uma página HTML.",
+  TIMEOUT: "O site demorou demais para responder.",
+  NETWORK_ERROR: "Não foi possível conectar ao site. Tente novamente.",
+  PROVIDER_UNAVAILABLE:
+    "O serviço de IA está indisponível no momento. Tente novamente em instantes.",
+  RATE_LIMITED: "Muitas análises seguidas. Aguarde um instante.",
+};
+
 function errorResponse(error: unknown) {
   const denied = authErrorResponse(error);
   if (denied) return denied;
@@ -50,11 +69,16 @@ function errorResponse(error: unknown) {
   if (error instanceof SyntaxError)
     return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
   // Erros do buscador e da descoberta trazem um código; a mensagem é genérica.
-  if (error && typeof error === "object" && "code" in error)
+  if (error && typeof error === "object" && "code" in error) {
+    const codigo = String((error as { code: unknown }).code);
     return NextResponse.json(
-      { error: `Não foi possível analisar a página: ${String((error as { code: unknown }).code)}.` },
+      {
+        error:
+          EXPLICACAO[codigo] ?? `Não foi possível analisar a página: ${codigo}.`,
+      },
       { status: 400 },
     );
+  }
   return NextResponse.json(
     { error: "Não foi possível concluir a operação." },
     { status: 500 },

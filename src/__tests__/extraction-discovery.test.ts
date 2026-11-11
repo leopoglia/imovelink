@@ -192,6 +192,29 @@ describe("Descoberta do mapa de extração", () => {
     expect(generateGeminiJson).toHaveBeenCalledTimes(1);
   });
 
+  // Caso real: itaivan.com entrega menus e filtros, e carrega os anúncios por JS.
+  it("explica que a página carrega os anúncios por JavaScript", async () => {
+    const semAnuncios = readFileSync(
+      new URL("./fixtures/itaivan-sem-anuncios.html", import.meta.url),
+      "utf8",
+    );
+    responder(MAPA_DO_MODELO);
+    await expect(
+      descobrirMapaExtracao(semAnuncios, "https://www.itaivan.com/venda/"),
+    ).rejects.toMatchObject({ code: "PAGE_HAS_NO_LISTINGS" });
+  });
+
+  it("mantém MAP_MATCHED_NOTHING quando a página tem conteúdo mas o mapa erra", async () => {
+    responder({ ...MAPA_DO_MODELO, item: "div.nao-existe" });
+    const recheada = HTML.replace(
+      "</body>",
+      "<p>" + "conteúdo de verdade ".repeat(400) + "</p></body>",
+    );
+    await expect(
+      descobrirMapaExtracao(recheada, BASE),
+    ).rejects.toMatchObject({ code: "MAP_MATCHED_NOTHING" });
+  });
+
   it("limita a amostra devolvida para conferência", async () => {
     responder(MAPA_DO_MODELO);
     const { sample, total } = await descobrirMapaExtracao(HTML, BASE);

@@ -88,6 +88,21 @@ const INSTRUCAO =
   "Campos que a página não exibe devem vir nulos; não invente seletor. " +
   "url e title são obrigatórios. Prefira classes estáveis a posições como nth-child.";
 
+/**
+ * Sinal de página renderizada por JavaScript: muito HTML e pouquíssimo texto.
+ * Serve só para explicar a falha ao administrador, nunca para decidir antes
+ * de tentar — a verificação real continua sendo aplicar o mapa.
+ */
+const MINIMO_DE_TEXTO = 5000;
+const HTML_VOLUMOSO = 20_000;
+
+export function pareceRenderizadaPorJs(html: string): boolean {
+  // Página curta pode simplesmente ser curta; o indício é a desproporção.
+  if (html.length < HTML_VOLUMOSO) return false;
+  const texto = cheerio.load(html)("body").text().replace(/\s+/g, " ").trim();
+  return texto.length < MINIMO_DE_TEXTO;
+}
+
 /** O mapa veio do modelo com nulos; o schema interno trabalha com ausência. */
 function semNulos(bruto: unknown): unknown {
   if (bruto === null || typeof bruto !== "object") return bruto;
@@ -167,7 +182,10 @@ export async function descobrirMapaExtracao(
 
   // A prova: o mapa só vale se extrair anúncios do HTML que o originou.
   const amostra = extrairAnuncios(html, candidato, baseUrl);
-  if (!amostra.length) throw new DiscoveryError("MAP_MATCHED_NOTHING");
+  if (!amostra.length)
+    throw new DiscoveryError(
+      pareceRenderizadaPorJs(html) ? "PAGE_HAS_NO_LISTINGS" : "MAP_MATCHED_NOTHING",
+    );
 
   return { map: candidato, sample: amostra.slice(0, 5), total: amostra.length };
 }
