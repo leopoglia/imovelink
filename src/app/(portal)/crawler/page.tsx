@@ -2,7 +2,13 @@
 
 import React, { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Globe, Internet, Refresh, Trash } from "iconoir-react";
+import {
+  Globe,
+  Internet,
+  Refresh,
+  RefreshDouble,
+  Trash,
+} from "iconoir-react";
 import { useTenantStore } from "@/store/tenant-store";
 import { apiFetch } from "@/lib/api";
 import { hasPermission } from "@/lib/auth/rbac";
@@ -103,11 +109,28 @@ export default function CrawlerPage() {
   });
 
   const acao = useMutation({
-    mutationFn: async (body: unknown) => enviar(body),
+    mutationFn: async (body: {
+      action: string;
+      sourceId: string;
+      active?: boolean;
+    }) => enviar(body),
     onMutate: () => setErro(""),
     onSuccess: invalidar,
     onError: falhar,
   });
+
+  // Uma única mutação atende todas as fontes; as variáveis em voo dizem qual
+  // delas está processando, para o carregamento não contaminar as outras.
+  const emAcao = acao.isPending ? acao.variables : null;
+  const ocupada = (id: string) => emAcao?.sourceId === id;
+  const rotuloDaAcao = (id: string) =>
+    !ocupada(id)
+      ? null
+      : emAcao?.action === "COLLECT"
+        ? "Coletando anúncios…"
+        : emAcao?.action === "REMOVE"
+          ? "Removendo…"
+          : "Atualizando…";
 
   if (!podeGerenciar)
     return (
@@ -277,7 +300,11 @@ export default function CrawlerPage() {
         )}
         <ul className="crawler-sources">
           {fontes.map((fonte) => (
-            <li key={fonte.id} className="crawler-source">
+            <li
+              key={fonte.id}
+              className={`crawler-source${ocupada(fonte.id) ? " is-busy" : ""}`}
+              aria-busy={ocupada(fonte.id)}
+            >
               <div>
                 <strong>
                   <Globe aria-hidden="true" width={14} height={14} />{" "}
@@ -302,7 +329,18 @@ export default function CrawlerPage() {
                     : " · página única"}
                   {!fonte.active && " · pausada"}
                 </span>
-                {fonte.lastError && (
+                {rotuloDaAcao(fonte.id) && (
+                  <span className="crawler-progress" role="status">
+                    <RefreshDouble
+                      aria-hidden="true"
+                      width={13}
+                      height={13}
+                      className="ai-search-spinner"
+                    />
+                    {rotuloDaAcao(fonte.id)}
+                  </span>
+                )}
+                {fonte.lastError && !ocupada(fonte.id) && (
                   <span className="ai-search-error">
                     Última falha: {fonte.lastError}
                   </span>
@@ -318,7 +356,9 @@ export default function CrawlerPage() {
                   }
                 >
                   <Refresh aria-hidden="true" width={14} height={14} />
-                  Coletar
+                  {ocupada(fonte.id) && emAcao?.action === "COLLECT"
+                    ? "Coletando…"
+                    : "Coletar"}
                 </button>
                 <button
                   type="button"

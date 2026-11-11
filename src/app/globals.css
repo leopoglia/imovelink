@@ -2220,3 +2220,14 @@ textarea.field-control {
   width: 72px;
   flex: 0 0 auto;
 }
+.crawler-source.is-busy {
+  border-color: var(--accent);
+  opacity: 0.85;
+}
+.crawler-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--accent);
+}
