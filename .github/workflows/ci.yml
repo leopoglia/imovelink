@@ -27,8 +27,16 @@ jobs:
       - name: Run TypeScript Static Analysis
         run: npm run typecheck
 
-      - name: Run Automated TDD Test Suite (Vitest)
-        run: npm run test
+      - name: Run Automated TDD Test Suite with Coverage Gate (Vitest)
+        run: npm run coverage
+
+      - name: Publish Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
 
       - name: Build Production Next.js 15 App Router (SSR & API Routes)
         run: npm run build
