@@ -59,8 +59,13 @@ describe("Extração de anúncios externos", () => {
   });
 
   it("não confunde os anúncios entre si", () => {
-    const [, segundo] = extrairAnuncios(HTML, MAPA, BASE);
+    const [primeiro, segundo] = extrairAnuncios(HTML, MAPA, BASE);
     expect(segundo.price).toBe(150000);
+    // Cada anúncio precisa apontar para o seu próprio destino: um seletor que
+    // escape do card devolveria o link do vizinho.
+    expect(segundo.url).not.toBe(primeiro.url);
+    expect(segundo.url).toContain("rs150000");
+    expect(primeiro.url).toContain("rs130000");
   });
 
   it("descarta anúncio sem URL ou sem título", () => {
