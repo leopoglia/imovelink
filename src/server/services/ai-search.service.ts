@@ -13,6 +13,8 @@ import {
 } from "@/lib/geo";
 import { PROPERTY_TYPE_LABELS } from "@/lib/property-search";
 import { propertyRepository } from "@/server/repositories/property.repository";
+import { externalSourceRepository } from "@/server/repositories/external-source.repository";
+import { filtrarExternos } from "./external-search";
 import { interpretPropertyQuery } from "./property-query-ai";
 import { geminiConfigured } from "./gemini.mjs";
 
@@ -195,6 +197,26 @@ function extrairComodidades(text: string) {
     else mustHaveAmenities.push(comodidade);
   }
   return { mustHaveAmenities, excludedAmenities };
+}
+
+/** Anúncios de outros sites que atendem a mesma consulta, se houver fontes. */
+async function externosPara(
+  tenantId: string,
+  query: StructuredPropertyQuery,
+) {
+  try {
+    const [anuncios, fontes] = await Promise.all([
+      externalSourceRepository.listListings(tenantId),
+      externalSourceRepository.listByTenant(tenantId),
+    ]);
+    if (!anuncios.length) return undefined;
+    const porId = new Map(fontes.map((fonte) => [fonte.id, fonte]));
+    const encontrados = filtrarExternos(anuncios, query, porId);
+    return encontrados.length ? encontrados : undefined;
+  } catch {
+    // A busca própria não pode falhar por causa do acervo externo.
+    return undefined;
+  }
 }
 
 export class AISearchService {
@@ -389,6 +411,7 @@ export class AISearchService {
     return {
       query,
       results: this.rank(catalog, query, onlyAvailable),
+      externalResults: await externosPara(tenantId, query),
       executionTimeMs: Math.round(performance.now() - start),
       totalCandidatesEvaluated: catalog.length,
       interpretation: { mode: "local", reason: "not_configured" },
@@ -421,6 +444,7 @@ export class AISearchService {
     return {
       query,
       results: this.rank(catalog, query, onlyAvailable),
+      externalResults: await externosPara(tenantId, query),
       executionTimeMs: Math.round(performance.now() - start),
       totalCandidatesEvaluated: catalog.length,
       interpretation,

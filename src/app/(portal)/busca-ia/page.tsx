@@ -6,6 +6,7 @@ import {
   AreaSearch,
   Check,
   Copy,
+  Internet,
   MapPin,
   NavArrowDown,
   RefreshDouble,
@@ -16,7 +17,11 @@ import {
   getSearchCriteria,
   PROPERTY_STATUS_LABELS,
 } from "@/lib/property-search";
-import type { HybridSearchResponse, Property } from "@/types/domain";
+import type {
+  ExternalResultItem,
+  HybridSearchResponse,
+  Property,
+} from "@/types/domain";
 
 const SUGGESTIONS = [
   {
@@ -32,6 +37,24 @@ const SUGGESTIONS = [
     query: "Studio mobiliado perto da Católica até 390 mil",
   },
 ];
+
+/** Junta imóveis próprios e anúncios externos numa lista só, por relevância. */
+function misturarResultados(resposta: HybridSearchResponse) {
+  const proprios = resposta.results.map((item) => ({
+    ordem: item.hybridScore,
+    proprio: item,
+    externo: null as ExternalResultItem | null,
+  }));
+  const externos = (resposta.externalResults ?? []).map((item) => ({
+    ordem: item.score,
+    proprio: null as (typeof resposta.results)[number] | null,
+    externo: item,
+  }));
+  return [...proprios, ...externos].sort((a, b) => b.ordem - a.ordem) as Array<
+    | { ordem: number; proprio: (typeof resposta.results)[number]; externo: null }
+    | { ordem: number; proprio: null; externo: ExternalResultItem }
+  >;
+}
 
 export default function BuscaIAPage() {
   const { currentTenant } = useTenantStore();
@@ -130,6 +153,8 @@ export default function BuscaIAPage() {
   }
 
   const criteria = response ? getSearchCriteria(response.query) : [];
+  const totalDeResultados =
+    (response?.results.length ?? 0) + (response?.externalResults?.length ?? 0);
   return (
     <div className="ai-search-page">
       <div className="ai-search-composer">
@@ -235,14 +260,12 @@ export default function BuscaIAPage() {
           <section className="ai-results" aria-label="Resultados da busca">
             <div className="ai-results-heading">
               <h2>
-                {response.results.length}{" "}
-                {response.results.length === 1
+                {totalDeResultados}{" "}
+                {totalDeResultados === 1
                   ? "imóvel encontrado"
                   : "imóveis encontrados"}
               </h2>
-              {response.results.length > 1 && (
-                <span>Mais relevantes primeiro</span>
-              )}
+              {totalDeResultados > 1 && <span>Mais relevantes primeiro</span>}
             </div>
             {queryText.trim() !== submittedQuery && (
               <p className="ai-search-note">
@@ -282,7 +305,73 @@ export default function BuscaIAPage() {
               </div>
             ) : (
               <div className="ai-result-list">
-                {response.results.map(({ property, matchReasons }) => (
+                {misturarResultados(response).map((linha) => {
+                  if (linha.externo) {
+                    const externo = linha.externo;
+                    return (
+                      <article
+                        className="ai-result is-external"
+                        key={externo.id}
+                      >
+                        <div className="ai-result-image">
+                          <Internet width={26} height={26} aria-hidden="true" />
+                        </div>
+                        <div className="ai-result-body">
+                          <div className="ai-result-top">
+                            <div>
+                              <span className="ai-result-external-badge">
+                                {externo.sourceName}
+                              </span>
+                            </div>
+                            <strong>
+                              {externo.price === null
+                                ? "Consulte"
+                                : formatPropertyPrice(externo.price)}
+                            </strong>
+                          </div>
+                          <h3>{externo.title}</h3>
+                          <p className="ai-result-location">
+                            <MapPin width={14} height={14} aria-hidden="true" />
+                            {[externo.neighborhood, externo.city]
+                              .filter(Boolean)
+                              .join(", ") || "Local não informado"}
+                          </p>
+                          <p className="ai-result-specs">
+                            {externo.bedrooms ?? "—"} quartos<span>·</span>
+                            {externo.parkingSpots ?? "—"} vagas<span>·</span>
+                            {externo.areaTotal ?? "—"} m²
+                          </p>
+                          <ul
+                            className="ai-match-reasons"
+                            aria-label="Destaques do anúncio externo"
+                          >
+                            {externo.matchReasons.slice(0, 3).map((motivo) => (
+                              <li key={motivo}>
+                                <Check
+                                  width={14}
+                                  height={14}
+                                  aria-hidden="true"
+                                />
+                                {motivo}
+                              </li>
+                            ))}
+                          </ul>
+                          <div className="ai-result-actions">
+                            <a
+                              className="button-secondary button-compact"
+                              href={externo.url}
+                              target="_blank"
+                              rel="noopener noreferrer nofollow"
+                            >
+                              Ver no site de origem
+                            </a>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  }
+                  const { property, matchReasons } = linha.proprio;
+                  return (
                   <article className="ai-result" key={property.id}>
                     <div className="ai-result-image">
                       {property.images[0] ? (
@@ -372,7 +461,8 @@ export default function BuscaIAPage() {
                         )}
                     </div>
                   </article>
-                ))}
+                  );
+                })}
               </div>
             )}
           </section>

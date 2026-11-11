@@ -187,6 +187,8 @@ export interface HybridSearchResultItem {
 export interface HybridSearchResponse {
   query: StructuredPropertyQuery;
   results: HybridSearchResultItem[];
+  /** Anúncios de outros sites indexados pelo crawler, se houver. */
+  externalResults?: ExternalResultItem[];
   executionTimeMs: number;
   totalCandidatesEvaluated: number;
   interpretation?: {
@@ -231,4 +233,25 @@ export interface ExternalListing {
   contentHash: string;
   firstSeenAt: string;
   lastSeenAt: string;
+}
+
+/**
+ * Resultado vindo de um site de terceiro. Carrega só os campos factuais que o
+ * crawler indexou e o endereço na origem — não tem foto, descrição nem código
+ * interno, porque esses permanecem no site que publicou o anúncio.
+ */
+export interface ExternalResultItem {
+  id: string;
+  sourceName: string;
+  url: string;
+  title: string;
+  price: number | null;
+  neighborhood: string | null;
+  city: string | null;
+  bedrooms: number | null;
+  parkingSpots: number | null;
+  areaTotal: number | null;
+  /** Comparável ao hybridScore dos imóveis próprios, para ordenar na mesma lista. */
+  score: number;
+  matchReasons: string[];
 }
