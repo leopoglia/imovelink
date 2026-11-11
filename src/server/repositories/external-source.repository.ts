@@ -122,8 +122,9 @@ export class ExternalSourceRepository {
   }
 
   /**
-   * Grava os anúncios de uma coleta. A chave é (source_id, url): reencontrar o
-   * mesmo anúncio atualiza os dados e a data de visto, sem duplicar.
+   * Grava os anúncios de uma coleta. A chave é (tenant_id, url): a URL
+   * identifica o imóvel, então duas fontes que encontram o mesmo anúncio
+   * atualizam a mesma linha em vez de duplicá-la.
    */
   async upsertListings(anuncios: ExternalListing[]): Promise<number> {
     if (!anuncios.length) return 0;
@@ -131,7 +132,8 @@ export class ExternalSourceRepository {
       const sql = getPostgres();
       for (const anuncio of anuncios) {
         await sql`INSERT INTO imovelink.external_listings ${sql(databaseRecord(anuncio))}
-          ON CONFLICT (source_id, url) DO UPDATE SET
+          ON CONFLICT (tenant_id, url) DO UPDATE SET
+            source_id = EXCLUDED.source_id,
             title = EXCLUDED.title,
             price = EXCLUDED.price,
             neighborhood = EXCLUDED.neighborhood,
@@ -147,11 +149,12 @@ export class ExternalSourceRepository {
     const db = getDb();
     for (const anuncio of anuncios) {
       const existente = db.externalListings.find(
-        (item) => item.sourceId === anuncio.sourceId && item.url === anuncio.url,
+        (item) => item.tenantId === anuncio.tenantId && item.url === anuncio.url,
       );
       if (existente)
         Object.assign(existente, anuncio, {
           id: existente.id,
+          // A primeira vez que o imóvel foi visto não se perde ao reencontrá-lo.
           firstSeenAt: existente.firstSeenAt,
           lastSeenAt: new Date().toISOString(),
         });

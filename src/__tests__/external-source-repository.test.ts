@@ -135,6 +135,34 @@ describe("Gravação de anúncios coletados", () => {
     expect(db.externalListings[0].price).toBe(125000);
   });
 
+  it("duas fontes que acham o mesmo imóvel gravam uma linha só", async () => {
+    // A URL identifica o imóvel: num agregador, o mesmo anúncio vindo de duas
+    // listagens não pode aparecer duplicado para o corretor.
+    await externalSourceRepository.upsertListings([anuncio()]);
+    await externalSourceRepository.upsertListings([
+      anuncio({ id: "outro", sourceId: "fonte-2", price: 140000 }),
+    ]);
+    expect(db.externalListings).toHaveLength(1);
+    expect(db.externalListings[0].price).toBe(140000);
+    expect(db.externalListings[0].sourceId).toBe("fonte-2");
+  });
+
+  it("mantém separados imóveis de URLs diferentes na mesma fonte", async () => {
+    await externalSourceRepository.upsertListings([
+      anuncio(),
+      anuncio({ id: "b", url: "https://x/outro" }),
+    ]);
+    expect(db.externalListings).toHaveLength(2);
+  });
+
+  it("não mistura imobiliárias com a mesma URL", async () => {
+    await externalSourceRepository.upsertListings([
+      anuncio(),
+      anuncio({ id: "b", tenantId: OUTRO_TENANT }),
+    ]);
+    expect(db.externalListings).toHaveLength(2);
+  });
+
   it("preserva a data do primeiro avistamento ao atualizar", async () => {
     await externalSourceRepository.upsertListings([anuncio()]);
     const primeiro = db.externalListings[0].firstSeenAt;
