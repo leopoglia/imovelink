@@ -1,5 +1,5 @@
 import type { Lead } from "@/types/domain";
-import { getDb, salvarNoDisco } from "./database-store";
+import { getDb } from "./memory-store";
 import {
   databaseRecord,
   domainRecord,
@@ -17,7 +17,6 @@ export class LeadRepository {
     }
     const db = getDb();
     db.leads.unshift(lead);
-    salvarNoDisco(db);
     return lead;
   }
 }

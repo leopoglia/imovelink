@@ -1,5 +1,5 @@
 import type { Tenant, UserProfile } from "@/types/domain";
-import { getDb, salvarNoDisco } from "./database-store";
+import { getDb } from "./memory-store";
 import {
   databaseRecord,
   domainRecord,
@@ -62,7 +62,6 @@ export class TenantRepository {
     const index = db.tenants.findIndex((t) => t.id === tenantId);
     if (index === -1) return null;
     db.tenants[index] = { ...db.tenants[index], ...safeUpdates };
-    salvarNoDisco(db);
     return db.tenants[index];
   }
   async findUserById(userId: string): Promise<UserProfile | undefined> {
@@ -113,7 +112,6 @@ export class TenantRepository {
     const index = db.users.findIndex((user) => user.id === userId);
     if (index === -1) return null;
     db.users[index] = { ...db.users[index], ...safeUpdates };
-    salvarNoDisco(db);
     return db.users[index];
   }
   async createUser(user: UserProfile, tenant?: Tenant): Promise<UserProfile> {
@@ -129,7 +127,6 @@ export class TenantRepository {
       const db = getDb();
       if (tenant) db.tenants.push(tenant);
       db.users.unshift(user);
-      salvarNoDisco(db);
       return user;
     });
   }

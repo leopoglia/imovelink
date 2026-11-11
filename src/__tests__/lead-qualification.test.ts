@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { leadQualificationService } from "@/server/services/lead-qualification.service";
-import { getDb } from "@/server/repositories/database-store";
+import { getDb } from "@/server/repositories/memory-store";
 import {
   SEED_TENANTS,
   SEED_USERS,
@@ -9,9 +9,8 @@ import {
   SEED_AUDIT_LOGS,
 } from "@/server/seeds/seed-jaragua";
 
-vi.mock("@/server/repositories/database-store", () => ({
+vi.mock("@/server/repositories/memory-store", () => ({
   getDb: vi.fn(),
-  salvarNoDisco: vi.fn(),
 }));
 
 const TENANT_ID = SEED_TENANTS[0].id;

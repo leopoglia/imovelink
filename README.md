@@ -18,7 +18,7 @@ O projeto não inclui painel de Leads/Kanban, assinaturas ou pagamentos.
 
 Next.js 15 (interface e APIs), React 19, TypeScript, Tailwind CSS 4, TanStack Query, Zustand, Zod, Iconoir e componentes Radix para os menus e selects. A fonte Fustat é hospedada localmente, com licença em `src/app/fonts/OFL.txt`.
 
-O backend pertence ao Next.js. Com `DATABASE_URL`, os repositórios usam PostgreSQL, inclusive quando hospedado no Supabase; autenticação, APIs e regras continuam no projeto. Sem essa variável, o catálogo local utiliza `data/database.json`; a autenticação exige PostgreSQL e não libera acesso demonstrativo.
+O backend pertence ao Next.js. Com `DATABASE_URL`, os repositórios usam PostgreSQL, inclusive quando hospedado no Supabase; autenticação, APIs e regras continuam no projeto. Sem essa variável, o catálogo usa um conjunto de dados em memória para desenvolvimento e testes, descartado ao encerrar o processo; a autenticação exige PostgreSQL e não libera acesso demonstrativo.
 
 ## Executar
 
@@ -33,7 +33,7 @@ Abra `http://localhost:3000`. A vitrine demonstrativa fica em `/vitrine/catolica
 
 Para ativar a interpretação por IA, preencha `GEMINI_API_KEY` em `.env.local` com uma chave do Google AI Studio e reinicie o servidor. `GEMINI_MODEL` permite escolher o modelo; o padrão é `gemini-3.5-flash-lite`. Execute `npm run ai:check` para verificar a chave, o modelo e uma resposta estruturada real. Sem chave, a interface identifica a busca local. A chave não deve ser exposta em variáveis `NEXT_PUBLIC_`.
 
-Para configurar PostgreSQL, preencha `DATABASE_URL` e execute `npm run db:check`, `npm run db:migrate` e `npm run db:import`. A importação inicial exige destino vazio e preserva o arquivo local.
+Para configurar PostgreSQL, preencha `DATABASE_URL` e execute `npm run db:check` e `npm run db:migrate`. A importação inicial exige destino vazio e preserva o arquivo local.
 
 Para definir a senha de uma conta existente, execute `npm run auth:set-password` no terminal. A senha não é exibida nem recebida como argumento.
 

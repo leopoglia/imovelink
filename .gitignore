@@ -35,8 +35,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local authentication key
-/data/.remembered-account-key
 
 # local documentation notes
 /docs/

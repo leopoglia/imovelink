@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { propertyService } from "@/server/services/property.service";
-import { getDb } from "@/server/repositories/database-store";
+import { getDb } from "@/server/repositories/memory-store";
 import {
   SEED_TENANTS,
   SEED_USERS,
@@ -11,9 +11,8 @@ import {
 import { hasPermission } from "@/lib/auth/rbac";
 
 const TENANT_ID = SEED_TENANTS[0].id;
-vi.mock("@/server/repositories/database-store", () => ({
+vi.mock("@/server/repositories/memory-store", () => ({
   getDb: vi.fn(),
-  salvarNoDisco: vi.fn(),
 }));
 
 describe("RBAC e Auditoria de Imóveis", () => {

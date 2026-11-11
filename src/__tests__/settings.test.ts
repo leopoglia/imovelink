@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
-import { getDb, salvarNoDisco } from "@/server/repositories/database-store";
+import { getDb } from "@/server/repositories/memory-store";
 import { settingsService } from "@/server/services/settings.service";
 import { SEED_TENANTS, SEED_USERS } from "@/server/seeds/seed-jaragua";
 
-vi.mock("@/server/repositories/database-store", () => ({
+vi.mock("@/server/repositories/memory-store", () => ({
   getDb: vi.fn(),
-  salvarNoDisco: vi.fn(),
 }));
 
 function createDatabase(): ReturnType<typeof getDb> {
@@ -21,10 +20,12 @@ function createDatabase(): ReturnType<typeof getDb> {
 
 describe("Configurações da conta", () => {
   let db: ReturnType<typeof getDb>;
+  let inicial: ReturnType<typeof getDb>;
   beforeEach(() => {
     vi.clearAllMocks();
     db = createDatabase();
     vi.mocked(getDb).mockReturnValue(db);
+    inicial = structuredClone(db);
   });
 
   const profileValues = {
@@ -54,7 +55,6 @@ describe("Configurações da conta", () => {
     expect(result.user.email).toBe("leonardo@example.com");
     expect(result.user.role).toBe("AGENCY_ADMIN");
     expect(db.users[0]).toEqual(result.user);
-    expect(salvarNoDisco).toHaveBeenCalledOnce();
   });
 
   it("rejeita tentativas de alterar o papel pelo formulário de perfil", async () => {
@@ -66,14 +66,14 @@ describe("Configurações da conta", () => {
         values: { ...profileValues, role: "SUPER_ADMIN" },
       }),
     ).rejects.toThrow(ZodError);
-    expect(salvarNoDisco).not.toHaveBeenCalled();
+    expect(db).toEqual(inicial);
   });
 
   it("rejeita acesso a outra imobiliária sem permissão", async () => {
     await expect(
       settingsService.getSettings(db.users[0].id, db.tenants[1].id),
     ).rejects.toThrow("Não foi possível acessar este perfil.");
-    expect(salvarNoDisco).not.toHaveBeenCalled();
+    expect(db).toEqual(inicial);
   });
 
   it("rejeita a edição da imobiliária por um corretor", async () => {
@@ -85,7 +85,7 @@ describe("Configurações da conta", () => {
         values: agencyValues,
       }),
     ).rejects.toThrow("Apenas gestores");
-    expect(salvarNoDisco).not.toHaveBeenCalled();
+    expect(db).toEqual(inicial);
   });
 
   it("salva a imobiliária sem perder a identidade da vitrine", async () => {
@@ -103,7 +103,7 @@ describe("Configurações da conta", () => {
       original.branding.primaryColor,
     );
     expect(result.tenant.slug).toBe(original.slug);
-    expect(salvarNoDisco).toHaveBeenCalledOnce();
+    expect(db.tenants[0]).toEqual(result.tenant);
   });
 
   it("permite ao super administrador configurar a imobiliária selecionada", async () => {
@@ -126,7 +126,7 @@ describe("Configurações da conta", () => {
         values: { ...profileValues, email: db.users[1].email },
       }),
     ).rejects.toThrow("Este e-mail já está em uso.");
-    expect(salvarNoDisco).not.toHaveBeenCalled();
+    expect(db).toEqual(inicial);
   });
 
   it("rejeita e-mail e nome inválidos sem gravar dados", async () => {
@@ -138,6 +138,6 @@ describe("Configurações da conta", () => {
         values: { ...profileValues, name: " ", email: "invalid" },
       }),
     ).rejects.toThrow(ZodError);
-    expect(salvarNoDisco).not.toHaveBeenCalled();
+    expect(db).toEqual(inicial);
   });
 });

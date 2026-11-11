@@ -2,7 +2,6 @@ import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import postgres from "postgres";
 import { databaseTlsOptions } from "../src/server/database/tls.mjs";
-import { normalizeSnapshotIds } from "../src/server/database/identifiers.mjs";
 
 const command = process.argv[2] || "check";
 const connection = process.env.DATABASE_URL?.trim();
@@ -12,7 +11,7 @@ if (!connection || !/^postgres(?:ql)?:\/\//.test(connection)) {
   );
   process.exit(1);
 }
-if (!["check", "migrate", "import"].includes(command)) {
+if (!["check", "migrate"].includes(command)) {
   console.error("Comando esperado: check, migrate ou import.");
   process.exit(1);
 }
@@ -25,13 +24,6 @@ const sql = postgres(connection, {
   transform: { ...postgres.camel, json: false },
   onnotice: () => {},
 });
-const tables = [
-  { key: "tenants", table: "tenants" },
-  { key: "users", table: "users" },
-  { key: "properties", table: "properties" },
-  { key: "leads", table: "leads" },
-  { key: "auditLogs", table: "property_audit_logs" },
-];
 let step = command;
 
 try {
@@ -80,65 +72,6 @@ try {
     );
   }
 
-  if (command === "import") {
-    const originalSnapshot = JSON.parse(
-      await fs.readFile(
-        new URL("../data/database.json", import.meta.url),
-        "utf8",
-      ),
-    );
-    if (!tables.every(({ key }) => Array.isArray(originalSnapshot[key])))
-      throw Object.assign(new Error(), { code: "INVALID_SNAPSHOT" });
-    const snapshot = normalizeSnapshotIds(originalSnapshot);
-    const counts = {};
-    await sql.begin(async (transaction) => {
-      await transaction`LOCK TABLE imovelink.tenants, imovelink.users, imovelink.properties, imovelink.leads, imovelink.property_audit_logs IN EXCLUSIVE MODE`;
-      for (const { table } of tables) {
-        // Table identifiers come exclusively from the fixed list above.
-        const [row] =
-          await transaction`SELECT COUNT(*)::INTEGER AS count FROM ${transaction.unsafe(`imovelink.${table}`)}`;
-        if (row.count !== 0)
-          throw Object.assign(new Error(), { code: "DATABASE_NOT_EMPTY" });
-      }
-      for (const { key, table } of tables) {
-        const columns =
-          await transaction`SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'imovelink' AND table_name = ${table}`;
-        const camel = (name) =>
-          name.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-        const allowed = new Set(
-          columns.map((column) => camel(column.columnName)),
-        );
-        const json = new Set(
-          columns
-            .filter((column) => column.dataType === "jsonb")
-            .map((column) => camel(column.columnName)),
-        );
-        for (let index = 0; index < snapshot[key].length; index++) {
-          step = `importação de ${table}, registro ${index + 1}`;
-          const row = snapshot[key][index];
-          if (!row || typeof row.id !== "string")
-            throw Object.assign(new Error(), { code: "INVALID_SNAPSHOT" });
-          const record = Object.fromEntries(
-            Object.entries(row)
-              .filter(
-                ([name, value]) => allowed.has(name) && value !== undefined,
-              )
-              .map(([name, value]) => [
-                name,
-                json.has(name) && value !== null
-                  ? transaction.json(value)
-                  : value,
-              ]),
-          );
-          await transaction`INSERT INTO ${transaction.unsafe(`imovelink.${table}`)} ${transaction(record)}`;
-        }
-        counts[key] = snapshot[key].length;
-      }
-    });
-    console.log(
-      JSON.stringify({ imported: counts, sourceFileUnchanged: true }),
-    );
-  }
 } catch (error) {
   const code =
     typeof error?.code === "string" && /^[A-Z0-9_]+$/.test(error.code)

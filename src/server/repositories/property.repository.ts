@@ -1,5 +1,5 @@
 import type { Property, PropertyAuditLog } from "@/types/domain";
-import { getDb, salvarNoDisco } from "./database-store";
+import { getDb } from "./memory-store";
 import {
   databaseRecord,
   domainRecord,
@@ -59,7 +59,6 @@ export class PropertyRepository {
     }
     const db = getDb();
     db.properties.unshift(property);
-    salvarNoDisco(db);
     return property;
   }
 
@@ -114,7 +113,6 @@ export class PropertyRepository {
     );
     if (index === -1) return null;
     db.properties[index] = { ...db.properties[index], ...safeUpdates };
-    salvarNoDisco(db);
     return db.properties[index];
   }
 
@@ -130,7 +128,6 @@ export class PropertyRepository {
     );
     if (index === -1) return false;
     db.properties.splice(index, 1);
-    salvarNoDisco(db);
     return true;
   }
 
@@ -143,7 +140,6 @@ export class PropertyRepository {
     }
     const db = getDb();
     db.auditLogs.unshift(log);
-    salvarNoDisco(db);
     return log;
   }
 
