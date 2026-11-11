@@ -9,6 +9,28 @@ vi.mock("@/server/repositories/property.repository", () => ({
   propertyRepository: { findAllByTenant: vi.fn() },
 }));
 
+describe("Lugares que só existem no acervo externo", () => {
+  it("reconhece a cidade de um anúncio externo quando informada", () => {
+    const semExtras = aiSearchService.extractStructuredQuery("imovel em Corupa");
+    expect(semExtras.neighborhoods).toEqual([]);
+    const comExtras = aiSearchService.extractStructuredQuery(
+      "imovel em Corupa",
+      [],
+      ["Corupa", "Guaramirim"],
+    );
+    expect(comExtras.neighborhoods).toEqual(["Corupa"]);
+  });
+
+  it("não inventa lugar que não foi citado na frase", () => {
+    const q = aiSearchService.extractStructuredQuery(
+      "casa com piscina",
+      [],
+      ["Corupa", "Guaramirim"],
+    );
+    expect(q.neighborhoods).toEqual([]);
+  });
+});
+
 describe("Busca Inteligente por Compatibilidade de Imóveis", () => {
   beforeEach(() => {
     vi.clearAllMocks();

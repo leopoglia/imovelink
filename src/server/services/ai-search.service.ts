@@ -165,10 +165,16 @@ function extrairFaixaDePreco(text: string) {
   };
 }
 
-function extrairBairros(text: string, catalog: Property[]): string[] {
+function extrairBairros(
+  text: string,
+  catalog: Property[],
+  extras: string[] = [],
+): string[] {
   const conhecidos = [
     ...Object.values(BAIRROS_JARAGUA).map((item) => item.bairro),
     ...catalog.map((item) => item.addressNeighborhood),
+    // Bairros e cidades que só aparecem nos anúncios de outros sites.
+    ...extras,
   ];
   // O mesmo bairro pode vir do mapa e do catalogo; a chave normalizada tira a repeticao.
   const porNomeNormalizado = new Map(
@@ -200,29 +206,43 @@ function extrairComodidades(text: string) {
 }
 
 /** Anúncios de outros sites que atendem a mesma consulta, se houver fontes. */
-async function externosPara(
-  tenantId: string,
-  query: StructuredPropertyQuery,
-) {
+/** Acervo externo da imobiliária. A busca própria nunca falha por causa dele. */
+async function carregarAcervoExterno(tenantId: string) {
   try {
     const [anuncios, fontes] = await Promise.all([
       externalSourceRepository.listListings(tenantId),
       externalSourceRepository.listByTenant(tenantId),
     ]);
-    if (!anuncios.length) return undefined;
-    const porId = new Map(fontes.map((fonte) => [fonte.id, fonte]));
-    const encontrados = filtrarExternos(anuncios, query, porId);
-    return encontrados.length ? encontrados : undefined;
+    return { anuncios, fontes: new Map(fontes.map((f) => [f.id, f])) };
   } catch {
-    // A busca própria não pode falhar por causa do acervo externo.
-    return undefined;
+    return { anuncios: [], fontes: new Map() };
   }
+}
+
+/** Bairros e cidades que só existem nos anúncios externos. */
+function lugaresDoAcervo(anuncios: { neighborhood: string | null; city: string | null }[]) {
+  const nomes = new Set<string>();
+  for (const anuncio of anuncios) {
+    if (anuncio.neighborhood) nomes.add(anuncio.neighborhood);
+    if (anuncio.city) nomes.add(anuncio.city);
+  }
+  return [...nomes];
+}
+
+function externosPara(
+  acervo: Awaited<ReturnType<typeof carregarAcervoExterno>>,
+  query: StructuredPropertyQuery,
+) {
+  if (!acervo.anuncios.length) return undefined;
+  const encontrados = filtrarExternos(acervo.anuncios, query, acervo.fontes);
+  return encontrados.length ? encontrados : undefined;
 }
 
 export class AISearchService {
   extractStructuredQuery(
     rawQuery: string,
     catalog: Property[] = [],
+    lugaresExtras: string[] = [],
   ): StructuredPropertyQuery {
     const text = normalizarTexto(rawQuery);
     const { minPrice, maxPrice } = extrairFaixaDePreco(text);
@@ -240,7 +260,7 @@ export class AISearchService {
       ),
       minSuites: extrairQuantidade(text, /(\d+)\s*suites?\b/),
       minParkingSpots: extrairQuantidade(text, /(\d+)\s*vagas?\b/),
-      neighborhoods: extrairBairros(text, catalog),
+      neighborhoods: extrairBairros(text, catalog, lugaresExtras),
       mustHaveAmenities,
       excludedAmenities,
       locationMode: /\b(perto|proximo|proximidades|arredores)\b/.test(text)
@@ -406,12 +426,19 @@ export class AISearchService {
     onlyAvailable = false,
   ): Promise<HybridSearchResponse> {
     const start = performance.now();
-    const catalog = await propertyRepository.findAllByTenant(tenantId);
-    const query = this.extractStructuredQuery(rawQuery, catalog);
+    const [catalog, acervo] = await Promise.all([
+      propertyRepository.findAllByTenant(tenantId),
+      carregarAcervoExterno(tenantId),
+    ]);
+    const query = this.extractStructuredQuery(
+      rawQuery,
+      catalog,
+      lugaresDoAcervo(acervo.anuncios),
+    );
     return {
       query,
       results: this.rank(catalog, query, onlyAvailable),
-      externalResults: await externosPara(tenantId, query),
+      externalResults: externosPara(acervo, query),
       executionTimeMs: Math.round(performance.now() - start),
       totalCandidatesEvaluated: catalog.length,
       interpretation: { mode: "local", reason: "not_configured" },
@@ -426,15 +453,24 @@ export class AISearchService {
   ): Promise<HybridSearchResponse> {
     const start = performance.now();
     signal?.throwIfAborted();
-    const catalog = await propertyRepository.findAllByTenant(tenantId);
-    let query = this.extractStructuredQuery(rawQuery, catalog);
+    const [catalog, acervo] = await Promise.all([
+      propertyRepository.findAllByTenant(tenantId),
+      carregarAcervoExterno(tenantId),
+    ]);
+    const lugares = lugaresDoAcervo(acervo.anuncios);
+    let query = this.extractStructuredQuery(rawQuery, catalog, lugares);
     let interpretation: NonNullable<HybridSearchResponse["interpretation"]> = {
       mode: "local",
       reason: "not_configured",
     };
     if (geminiConfigured()) {
       try {
-        query = await interpretPropertyQuery(rawQuery, catalog, signal);
+        query = await interpretPropertyQuery(
+          rawQuery,
+          catalog,
+          signal,
+          lugares,
+        );
         interpretation = { mode: "ai" };
       } catch {
         if (signal?.aborted) throw signal.reason;
@@ -444,7 +480,7 @@ export class AISearchService {
     return {
       query,
       results: this.rank(catalog, query, onlyAvailable),
-      externalResults: await externosPara(tenantId, query),
+      externalResults: externosPara(acervo, query),
       executionTimeMs: Math.round(performance.now() - start),
       totalCandidatesEvaluated: catalog.length,
       interpretation,
