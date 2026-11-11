@@ -1,0 +1,43 @@
+{
+  "name": "imovelink",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gestao de imoveis, busca em linguagem natural e vitrine publica.",
+  "author": "Leonardo Heitor Poglia",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:check": "node --env-file-if-exists=.env.local scripts/database.mjs check",
+    "db:migrate": "node --env-file-if-exists=.env.local scripts/database.mjs migrate",
+    "db:import": "node --env-file-if-exists=.env.local scripts/database.mjs import",
+    "auth:set-password": "node --env-file-if-exists=.env.local scripts/set-password.mjs",
+    "ai:check": "node --env-file-if-exists=.env.local scripts/check-ai.mjs"
+  },
+  "dependencies": {
+    "@radix-ui/react-dropdown-menu": "^2.2.1",
+    "@radix-ui/react-select": "^2.4.1",
+    "@tanstack/react-query": "^5.66.0",
+    "iconoir-react": "^7.12.2",
+    "next": "^15.2.0",
+    "postgres": "^4.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.2",
+    "zustand": "^5.0.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.6",
+    "@testing-library/react": "^16.2.0",
+    "@types/node": "^22.13.4",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "jsdom": "^26.0.0",
+    "tailwindcss": "^4.0.6",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}
