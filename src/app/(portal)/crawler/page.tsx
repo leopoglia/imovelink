@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Globe,
@@ -9,6 +9,7 @@ import {
   NavArrowDown,
   RefreshDouble,
   Trash,
+  Xmark,
 } from "iconoir-react";
 import { useTenantStore } from "@/store/tenant-store";
 import { apiFetch } from "@/lib/api";
@@ -56,6 +57,7 @@ export default function CrawlerPage() {
   const [analise, setAnalise] = useState<Analise | null>(null);
   const [maxPages, setMaxPages] = useState(5);
   const [fonteAberta, setFonteAberta] = useState<string | null>(null);
+  const dialogo = useRef<HTMLDialogElement>(null);
   const [erro, setErro] = useState("");
 
   const podeGerenciar = hasPermission(currentUser.role, "crawler:manage");
@@ -134,6 +136,14 @@ export default function CrawlerPage() {
           ? "Removendo…"
           : "Atualizando…";
 
+  // showModal dá foco preso e fechamento por Escape sem código extra.
+  useEffect(() => {
+    const caixa = dialogo.current;
+    if (!caixa) return;
+    if (fonteAberta && !caixa.open) caixa.showModal();
+    if (!fonteAberta && caixa.open) caixa.close();
+  }, [fonteAberta]);
+
   if (!podeGerenciar)
     return (
       <div className="dashboard">
@@ -148,6 +158,10 @@ export default function CrawlerPage() {
 
   const fontes = data?.sources ?? [];
   const anuncios = data?.listings ?? [];
+  const fonteDetalhada = fontes.find((fonte) => fonte.id === fonteAberta);
+  const anunciosDaFonte = anuncios.filter(
+    (anuncio) => anuncio.sourceId === fonteAberta,
+  );
 
   return (
     <div className="dashboard">
@@ -406,78 +420,112 @@ export default function CrawlerPage() {
                 </button>
               </div>
 
-              {fonteAberta === fonte.id && (
-                <div className="crawler-source-listings">
-                  {(() => {
-                    const daFonte = anuncios.filter(
-                      (anuncio) => anuncio.sourceId === fonte.id,
-                    );
-                    if (!daFonte.length)
-                      return (
-                        <p className="ai-search-note">
-                          Nada coletado ainda nesta fonte.
-                        </p>
-                      );
-                    return (
-                      <div className="crawler-table-scroll">
-                        <table className="crawler-table">
-                          <caption className="sr-only">
-                            Anúncios indexados desta fonte
-                          </caption>
-                          <thead>
-                            <tr>
-                              <th scope="col">Título</th>
-                              <th scope="col">Preço</th>
-                              <th scope="col">Local</th>
-                              <th scope="col">Quartos</th>
-                              <th scope="col">Área</th>
-                              <th scope="col">Visto em</th>
-                              <th scope="col">Link</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {daFonte.map((anuncio) => (
-                              <tr key={anuncio.id}>
-                                <td>{anuncio.title}</td>
-                                <td>{moeda(anuncio.price)}</td>
-                                <td>
-                                  {[anuncio.neighborhood, anuncio.city]
-                                    .filter(Boolean)
-                                    .join(", ") || "—"}
-                                </td>
-                                <td>{anuncio.bedrooms ?? "—"}</td>
-                                <td>
-                                  {anuncio.areaTotal
-                                    ? `${anuncio.areaTotal} m²`
-                                    : "—"}
-                                </td>
-                                <td>
-                                  {new Date(
-                                    anuncio.lastSeenAt,
-                                  ).toLocaleDateString("pt-BR")}
-                                </td>
-                                <td>
-                                  <a
-                                    href={anuncio.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer nofollow"
-                                  >
-                                    abrir
-                                  </a>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
             </li>
           ))}
         </ul>
       </section>
+
+      <dialog
+        ref={dialogo}
+        className="crawler-dialog"
+        aria-labelledby="dialogo-fonte"
+        onClose={() => setFonteAberta(null)}
+        // Clicar fora da caixa fecha, como se espera de um modal.
+        onClick={(evento) => {
+          if (evento.target === dialogo.current) dialogo.current?.close();
+        }}
+      >
+        {fonteDetalhada && (
+          <>
+            <header className="crawler-dialog-header">
+              <div>
+                <h2 id="dialogo-fonte">{fonteDetalhada.name}</h2>
+                <a
+                  href={fonteDetalhada.listUrl}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="crawler-source-url"
+                >
+                  {fonteDetalhada.listUrl}
+                </a>
+              </div>
+              <button
+                type="button"
+                className="button-secondary button-compact"
+                onClick={() => dialogo.current?.close()}
+              >
+                <Xmark aria-hidden="true" width={15} height={15} />
+                Fechar
+              </button>
+            </header>
+
+            <p className="ai-search-note">
+              {anunciosDaFonte.length} anúncios indexados ·{" "}
+              {fonteDetalhada.lastCrawledAt
+                ? `última coleta em ${new Date(fonteDetalhada.lastCrawledAt).toLocaleString("pt-BR")}`
+                : "nunca coletado"}
+            </p>
+
+            {!anunciosDaFonte.length ? (
+              <p className="ai-search-note">
+                Nada coletado ainda nesta fonte.
+              </p>
+            ) : (
+              <div className="crawler-table-scroll">
+                <table className="crawler-table">
+                  <caption className="sr-only">
+                    Anúncios indexados desta fonte
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Título</th>
+                      <th scope="col">Preço</th>
+                      <th scope="col">Local</th>
+                      <th scope="col">Quartos</th>
+                      <th scope="col">Vagas</th>
+                      <th scope="col">Área</th>
+                      <th scope="col">Visto em</th>
+                      <th scope="col">Link</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {anunciosDaFonte.map((anuncio) => (
+                      <tr key={anuncio.id}>
+                        <td>{anuncio.title}</td>
+                        <td>{moeda(anuncio.price)}</td>
+                        <td>
+                          {[anuncio.neighborhood, anuncio.city]
+                            .filter(Boolean)
+                            .join(", ") || "—"}
+                        </td>
+                        <td>{anuncio.bedrooms ?? "—"}</td>
+                        <td>{anuncio.parkingSpots ?? "—"}</td>
+                        <td>
+                          {anuncio.areaTotal ? `${anuncio.areaTotal} m²` : "—"}
+                        </td>
+                        <td>
+                          {new Date(anuncio.lastSeenAt).toLocaleDateString(
+                            "pt-BR",
+                          )}
+                        </td>
+                        <td>
+                          <a
+                            href={anuncio.url}
+                            target="_blank"
+                            rel="noopener noreferrer nofollow"
+                          >
+                            abrir
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </dialog>
     </div>
   );
 }

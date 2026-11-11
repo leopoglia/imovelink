@@ -2272,9 +2272,37 @@ textarea.field-control {
 .crawler-source-toggle svg.is-open {
   transform: rotate(180deg);
 }
-.crawler-source-listings {
-  flex: 1 0 100%;
-  margin-top: 4px;
-  padding-top: 12px;
-  border-top: 1px solid var(--field-border);
+
+/* Detalhe de uma fonte: <dialog> nativo traz foco preso e Escape de graça */
+.crawler-dialog {
+  width: min(960px, calc(100vw - 32px));
+  max-height: 85vh;
+  margin: auto;
+  padding: 22px;
+  border: 1px solid var(--field-border);
+  border-radius: 18px;
+  background: var(--canvas);
+  color: var(--ink);
+  overflow: auto;
+}
+.crawler-dialog::backdrop {
+  background: rgb(15 27 43 / 0.45);
+  backdrop-filter: blur(2px);
+}
+.crawler-dialog-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.crawler-dialog-header h2 {
+  margin: 0 0 4px;
+  font-size: 17px;
+}
+.crawler-dialog-header > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
