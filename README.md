@@ -1,57 +1,76 @@
-# 🏢 Imovelink: Gestão de Imóveis e Prospecção Inteligente de Leads
+# Imovelink
 
-![Status](https://img.shields.io/badge/Status-Em_Desenvolvimento-orange)
-![Next.js](https://img.shields.io/badge/Next.js-15+-black?logo=next.js)
-![Laravel](https://img.shields.io/badge/Laravel-11-FF2D20?logo=laravel)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-PostGIS_%7C_pgvector-336791?logo=postgresql)
-![AI](https://img.shields.io/badge/AI-DeepSeek_%7C_OpenAI-000000?logo=openai)
+Aplicação para gestão de imóveis, busca em linguagem natural e vitrine pública por imobiliária.
 
-> **Projeto de Portfólio (N3)** - Engenharia de Software | Católica SC (Jaraguá do Sul)
-> **Autor:** Leonardo Heitor Poglia
+Projeto de portfólio de Leonardo Heitor Poglia — Engenharia de Software, Católica SC.
 
----
+## Funcionalidades
 
-## 📖 Sobre o Projeto
+- Cadastro de imóveis, alteração de preço/status e auditoria.
+- Busca por descrição, com interpretação via Google Gemini quando configurado e regras locais como alternativa.
+- Vitrine pública com captação de contatos e recomendações do catálogo.
+- Configurações de perfil e imobiliária.
+- Login com senha, sessão no servidor e acessos recentes autorizados.
 
-O mercado imobiliário exige agilidade e precisão, mas corretores frequentemente perdem produtividade gerenciando informações fragmentadas em sistemas densos, resultando no esfriamento de *leads* e perda de vendas. 
+O projeto não inclui painel de Leads/Kanban, assinaturas ou pagamentos.
 
-O **Imovelink** é uma aplicação Web (SaaS) construída sob medida para sanar esses gargalos operacionais. Ele atua como um assistente ativo para o corretor de ponta, centralizando o portfólio, otimizando buscas espaciais e qualificando leads através de Inteligência Artificial.
+## Tecnologias em uso
 
-### 🎯 O Problema
-Sistemas de mercado (CRMs tradicionais) concentram esforços em módulos administrativos complexos (ERP, faturamento, contratos), tornando a experiência de captação e prospecção lenta e engessada para o corretor.
+Next.js 15 (interface e APIs), React 19, TypeScript, Tailwind CSS 4, TanStack Query, Zustand, Zod, Iconoir e componentes Radix para os menus e selects. A fonte Fustat é hospedada localmente, com licença em `src/app/fonts/OFL.txt`.
 
-### 💡 A Solução
-O Imovelink foca exclusivamente na **atividade fim de vendas**. A plataforma unifica a gestão de imóveis e oferece um CRM ágil em formato Kanban, integrado com IA para ler o desejo do cliente de forma semântica (ex: *"casa com quintal perto do centro"*) e automatizar a qualificação da oportunidade.
+O backend pertence ao Next.js. Com `DATABASE_URL`, os repositórios usam PostgreSQL, inclusive quando hospedado no Supabase; autenticação, APIs e regras continuam no projeto. Sem essa variável, o catálogo local utiliza `data/database.json`; a autenticação exige PostgreSQL e não libera acesso demonstrativo.
 
----
+## Executar
 
-## 🚀 Principais Funcionalidades e Inovação
+Requer Node.js 22 e npm.
 
-*   **Motor de Busca Semântico e Espacial:** Utiliza *Large Language Models* (LLMs) via *Structured Outputs* para interpretar solicitações naturais, cruzando dados com **PostGIS** (geocodificação) e **pgvector** (busca híbrida por *embeddings*).
-*   **Gestão de Leads (Kanban CRM):** Interface fluida para acompanhamento de clientes. Conta com indicadores automatizados de inatividade e distribuição inteligente de oportunidades.
-*   **Gerador B2B de Sites (White-label):** Módulo que permite a pequenas imobiliárias gerarem seus próprios sites otimizados para SEO, com *Server-Side Rendering* (SSR) e microdados *Schema.org*.
-*   **Integração Bancária Nativa:** Módulo de cobrança recorrente automatizado através da API do **Asaas** via webhooks.
-*   **Auditoria de Imóveis:** Mecanismo leve de controle de qualidade para garantir a integridade e atualização das informações do portfólio.
+```bash
+npm ci
+npm run dev
+```
 
----
+Abra `http://localhost:3000`. A vitrine demonstrativa fica em `/vitrine/catolica-prime-imoveis`.
 
-## 🛠️ Arquitetura e Tecnologias
+Para ativar a interpretação por IA, preencha `GEMINI_API_KEY` em `.env.local` com uma chave do Google AI Studio e reinicie o servidor. `GEMINI_MODEL` permite escolher o modelo; o padrão é `gemini-3.5-flash-lite`. Execute `npm run ai:check` para verificar a chave, o modelo e uma resposta estruturada real. Sem chave, a interface identifica a busca local. A chave não deve ser exposta em variáveis `NEXT_PUBLIC_`.
 
-A arquitetura do sistema segue o modelo **Service-Repository Pattern**, isolando regras de negócio e garantindo escalabilidade para o formato Multi-Tenant.
+Para configurar PostgreSQL, siga [POSTGRESQL.md](docs/POSTGRESQL.md). Após preencher `DATABASE_URL`, execute `npm run db:check`, `npm run db:migrate` e `npm run db:import`. A importação inicial exige destino vazio e preserva o arquivo local.
 
-### Backend (API RESTful)
-*   **Framework:** Laravel 11 (PHP 8.2+)
-*   **Banco de Dados:** PostgreSQL
-*   **Extensões de BD:** PostGIS (Cálculo Espacial) e pgvector (Busca Vetorial)
-*   **Autenticação e Segurança:** Laravel Sanctum (SPA Auth) e Spatie (RBAC)
+Para definir a senha de uma conta existente, execute `npm run auth:set-password` no terminal. A senha não é exibida nem recebida como argumento. Consulte [AUTENTICACAO.md](docs/AUTENTICACAO.md) para sessões, permissões e configuração de produção.
 
-### Frontend (Painel e Sites B2B)
-*   **Framework:** Next.js 15+ (App Router) e React 19
-*   **Linguagem:** TypeScript
-*   **Estilização e UI:** Tailwind CSS + Shadcn/UI
-*   **Gerenciamento de Estado:** TanStack Query e Zustand
+## Verificar
 
-### Integrações
-*   **Inteligência Artificial:** LLMs (DeepSeek / OpenAI)
-*   **Pagamentos:** Asaas API
+```bash
+npm run typecheck
+npm test
+npm run build
+```
 
+Os testes de persistência utilizam dados em memória e não devem alterar o banco de desenvolvimento. Pare o servidor de desenvolvimento antes de gerar uma build: ambos os processos usam `.next` por padrão.
+
+## Estrutura
+
+```text
+src/app/                  Páginas e APIs do Next.js
+src/components/           Interface reutilizável
+src/server/services/      Regras de negócio e integração de IA
+src/server/repositories/  Acesso ao armazenamento
+src/server/seeds/         Dados de demonstração
+src/types/                Tipos do domínio
+src/__tests__/            Testes automatizados
+docs/                     Arquitetura, busca e preparação para autoria
+```
+
+## Documentação
+
+- [Arquitetura e requisitos atuais](docs/ARCHITECTURE_AND_REQUIREMENTS.md).
+- [Funcionamento e configuração da busca](docs/BUSCA_INTELIGENTE.md).
+- [Conexão, migrations e importação PostgreSQL](docs/POSTGRESQL.md).
+- [Autenticação, primeiro acesso e permissões](docs/AUTENTICACAO.md).
+- [Preparação para a prova de autoria](docs/GUIA_DEFESA_TCC.md).
+- [Revisão do portfólio e pendências](docs/REVISAO_PORTFOLIO_2026-11-10.md).
+
+## Pendências para produção e portfólio
+
+As páginas internas e APIs privadas validam sessões no servidor e derivam identidade, imobiliária e permissões do usuário autenticado. Cada ambiente precisa de sua conexão, certificado e configuração de origem pública. Ainda faltam comprovação de cobertura, deploy automatizado, análise de segurança e monitoramento. Recuperação de senha e convites não foram implementados; contas existentes são administradas pelo comando local.
+
+A integração de IA deve ser validada com uma credencial real. Esta versão não gera embeddings nem executa consultas pgvector/PostGIS.
