@@ -14,6 +14,8 @@ import { useTenantStore } from "@/store/tenant-store";
 import { apiFetch } from "@/lib/api";
 import { Property, PropertyAuditLog } from "@/types/domain";
 
+const DIAS_DA_JANELA = 30;
+
 const currency = (value: number) =>
   value.toLocaleString("pt-BR", {
     style: "currency",
@@ -41,11 +43,14 @@ export default function DashboardHomePage() {
   const properties = propData?.properties ?? [];
   const auditLogs = propData?.auditLogs ?? [];
   const available = properties.filter((p) => p.status === "AVAILABLE");
-  const totalVgv = properties.reduce((total, p) => total + p.price, 0);
   const reserved = properties.filter(
     (property) => property.status === "RESERVED",
   );
   const sold = properties.filter((property) => property.status === "SOLD");
+  const inicioDaJanela = Date.now() - DIAS_DA_JANELA * 24 * 60 * 60 * 1000;
+  const novosNaJanela = properties.filter(
+    (property) => Date.parse(property.createdAt) >= inicioDaJanela,
+  ).length;
   const featured = [...available]
     .sort((a, b) => Number(b.featured) - Number(a.featured))
     .slice(0, 3);
@@ -81,17 +86,6 @@ export default function DashboardHomePage() {
           </dd>
         </div>
         <div className="stat-card">
-          <dt className="stat-label">Valor em carteira</dt>
-          <dd className="stat-value">
-            {propertiesPending || propertiesError
-              ? "—"
-              : totalVgv >= 1_000_000
-                ? `R$ ${(totalVgv / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}`
-                : currency(totalVgv)}
-            {totalVgv >= 1_000_000 && <small>milhões</small>}
-          </dd>
-        </div>
-        <div className="stat-card">
           <dt className="stat-label">Imóveis reservados</dt>
           <dd className="stat-value">
             {propertiesPending || propertiesError ? "—" : reserved.length}
@@ -101,6 +95,13 @@ export default function DashboardHomePage() {
           <dt className="stat-label">Imóveis vendidos</dt>
           <dd className="stat-value">
             {propertiesPending || propertiesError ? "—" : sold.length}
+          </dd>
+        </div>
+        <div className="stat-card">
+          <dt className="stat-label">Novos em {DIAS_DA_JANELA} dias</dt>
+          <dd className="stat-value">
+            {propertiesPending || propertiesError ? "—" : novosNaJanela}
+            <small>imóveis cadastrados</small>
           </dd>
         </div>
       </dl>
