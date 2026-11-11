@@ -6,7 +6,8 @@ export type Permission =
   | "properties:edit"
   | "properties:delete"
   | "properties:audit_view"
-  | "whitelabel:configure";
+  | "whitelabel:configure"
+  | "crawler:manage";
 
 const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   BROKER: [
@@ -22,6 +23,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "properties:delete",
     "properties:audit_view",
     "whitelabel:configure",
+    "crawler:manage",
   ],
   SUPER_ADMIN: [
     "properties:view",
@@ -30,6 +32,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     "properties:delete",
     "properties:audit_view",
     "whitelabel:configure",
+    "crawler:manage",
   ],
 };
 
