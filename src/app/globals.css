@@ -2209,3 +2209,14 @@ textarea.field-control {
     width: 100%;
   }
 }
+.crawler-max-pages {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.crawler-max-pages input {
+  width: 72px;
+  flex: 0 0 auto;
+}

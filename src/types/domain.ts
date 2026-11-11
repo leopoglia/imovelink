@@ -206,6 +206,9 @@ export interface ExternalSource {
   listUrl: string;
   /** JSON vindo do banco; validar com extractionMapSchema antes de usar. */
   extractionMap: Record<string, unknown> | null;
+  /** URL com {n} no lugar do número da página; nulo quando a fonte tem página única. */
+  paginationTemplate: string | null;
+  maxPages: number;
   active: boolean;
   lastCrawledAt: string | null;
   lastError: string | null;

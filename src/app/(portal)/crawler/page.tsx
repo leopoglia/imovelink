@@ -26,6 +26,8 @@ interface Analise {
   extractionMap: ExtractionMap;
   sample: ExtractedListing[];
   total: number;
+  paginationTemplate: string | null;
+  paginationReason: string | null;
 }
 
 async function enviar(body: unknown) {
@@ -45,6 +47,7 @@ export default function CrawlerPage() {
   const [listUrl, setListUrl] = useState("");
   const [nome, setNome] = useState("");
   const [analise, setAnalise] = useState<Analise | null>(null);
+  const [maxPages, setMaxPages] = useState(5);
   const [erro, setErro] = useState("");
 
   const podeGerenciar = hasPermission(currentUser.role, "crawler:manage");
@@ -87,6 +90,8 @@ export default function CrawlerPage() {
         name: nome,
         listUrl: analise!.listUrl,
         extractionMap: analise!.extractionMap,
+        paginationTemplate: analise!.paginationTemplate,
+        maxPages,
       }),
     onSuccess: () => {
       setAnalise(null);
@@ -168,6 +173,17 @@ export default function CrawlerPage() {
               Encontrei <strong>{analise.total}</strong> anúncios nesta página.
               Confira a amostra antes de salvar.
             </p>
+            <p className="ai-search-note">
+              {analise.paginationTemplate ? (
+                <>
+                  Paginação detectada:{" "}
+                  <code>{analise.paginationTemplate}</code>. A coleta vai
+                  percorrer até o limite de páginas definido abaixo.
+                </>
+              ) : (
+                "Não encontrei paginação: a coleta vai ler apenas esta página."
+              )}
+            </p>
             <div className="crawler-table-scroll">
               <table className="crawler-table">
                 <caption className="sr-only">Amostra dos anúncios lidos</caption>
@@ -213,6 +229,20 @@ export default function CrawlerPage() {
                 placeholder="Nome da fonte"
                 maxLength={120}
               />
+              {analise.paginationTemplate && (
+                <label className="crawler-max-pages">
+                  Máximo de páginas
+                  <input
+                    type="number"
+                    min={1}
+                    max={200}
+                    value={maxPages}
+                    onChange={(evento) =>
+                      setMaxPages(Number(evento.target.value) || 1)
+                    }
+                  />
+                </label>
+              )}
               <button
                 type="button"
                 className="button-primary"
@@ -267,6 +297,9 @@ export default function CrawlerPage() {
                   {fonte.lastCrawledAt
                     ? `coletado em ${new Date(fonte.lastCrawledAt).toLocaleString("pt-BR")}`
                     : "nunca coletado"}
+                  {fonte.paginationTemplate
+                    ? ` · até ${fonte.maxPages} páginas`
+                    : " · página única"}
                   {!fonte.active && " · pausada"}
                 </span>
                 {fonte.lastError && (

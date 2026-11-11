@@ -5,6 +5,7 @@ import { hasPermission } from "@/lib/auth/rbac";
 import { externalSourceRepository } from "@/server/repositories/external-source.repository";
 import { buscarListagem } from "./crawler-fetch";
 import { descobrirMapaExtracao } from "./extraction-discovery";
+import { descobrirPaginacao, percorrerPaginas } from "./pagination";
 import {
   extractionMapSchema,
   extrairAnuncios,
@@ -30,6 +31,8 @@ export const novaFonteSchema = z.object({
   name: z.string().trim().min(2).max(120),
   listUrl: z.string().trim().url().max(2000),
   extractionMap: extractionMapSchema,
+  paginationTemplate: z.string().trim().max(2100).nullable().default(null),
+  maxPages: z.number().int().min(1).max(200).default(5),
 });
 
 function exigirPermissao(role: UserRole) {
@@ -81,6 +84,21 @@ function paraRegistro(
   };
 }
 
+/** Busca uma página extra; devolve null quando ela não existe ou falha. */
+function buscadorDePagina(signal?: AbortSignal) {
+  return async (alvo: string): Promise<string | null> => {
+    try {
+      const { html } = await buscarListagem(alvo, signal);
+      return html;
+    } catch {
+      return null;
+    }
+  };
+}
+
+const dormir = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export class CrawlerService {
   /**
    * Busca a página e descobre como lê-la, sem gravar nada. A amostra volta
@@ -95,7 +113,22 @@ export class CrawlerService {
       url.toString(),
       signal,
     );
-    return { listUrl: url.toString(), extractionMap: map, sample, total };
+    // Com o mapa em mãos, descobre se a listagem continua em outras páginas.
+    const todas = extrairAnuncios(html, map, url.toString());
+    const paginacao = await descobrirPaginacao(
+      url.toString(),
+      map,
+      todas.map((anuncio) => anuncio.url),
+      buscadorDePagina(signal),
+    );
+    return {
+      listUrl: url.toString(),
+      extractionMap: map,
+      sample,
+      total,
+      paginationTemplate: paginacao.template,
+      paginationReason: paginacao.reason ?? null,
+    };
   }
 
   async listar(role: UserRole, tenantId: string) {
@@ -106,7 +139,7 @@ export class CrawlerService {
   async salvar(
     role: UserRole,
     tenantId: string,
-    entrada: z.infer<typeof novaFonteSchema>,
+    entrada: z.input<typeof novaFonteSchema>,
   ) {
     exigirPermissao(role);
     const dados = novaFonteSchema.parse(entrada);
@@ -117,6 +150,8 @@ export class CrawlerService {
       name: dados.name,
       listUrl: dados.listUrl,
       extractionMap: dados.extractionMap,
+      paginationTemplate: dados.paginationTemplate,
+      maxPages: dados.maxPages,
       active: true,
       lastCrawledAt: null,
       lastError: null,
@@ -146,8 +181,20 @@ export class CrawlerService {
       );
 
     try {
-      const { html, url } = await buscarListagem(fonte.listUrl, signal);
-      const anuncios = extrairAnuncios(html, mapa.data, url.toString());
+      const { html, url, crawlDelay } = await buscarListagem(
+        fonte.listUrl,
+        signal,
+      );
+      const { anuncios, paginas } = await percorrerPaginas(
+        fonte.paginationTemplate,
+        { url: url.toString(), html },
+        mapa.data,
+        buscadorDePagina(signal),
+        fonte.maxPages,
+        dormir,
+        // Respeita o intervalo pedido pelo site, com um mínimo de cortesia.
+        Math.max((crawlDelay ?? 0) * 1000, 500),
+      );
       if (!anuncios.length) {
         // A página mudou de estrutura: o mapa salvo não serve mais.
         await externalSourceRepository.registrarColeta(
@@ -163,7 +210,7 @@ export class CrawlerService {
         anuncios.map((anuncio) => paraRegistro(anuncio, sourceId, tenantId)),
       );
       await externalSourceRepository.registrarColeta(tenantId, sourceId, null);
-      return { collected: gravados };
+      return { collected: gravados, pages: paginas };
     } catch (erro) {
       if (erro instanceof CrawlerError) throw erro;
       const codigo =
