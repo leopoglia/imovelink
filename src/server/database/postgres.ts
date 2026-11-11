@@ -51,6 +51,7 @@ const jsonFields = new Set([
   "beforeState",
   "afterState",
   "aiExtractedProfile",
+  "extractionMap",
 ]);
 const numberFields = new Set([
   "price",

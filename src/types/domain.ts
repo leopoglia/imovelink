@@ -194,3 +194,38 @@ export interface HybridSearchResponse {
     reason?: "not_configured" | "unavailable";
   };
 }
+
+/**
+ * Anúncio de terceiro agregado pelo crawler. Guardamos apenas dados factuais e
+ * o endereço na origem: fotos e descrição permanecem no site de quem publicou.
+ */
+export interface ExternalSource {
+  id: string;
+  tenantId: string;
+  name: string;
+  listUrl: string;
+  /** JSON vindo do banco; validar com extractionMapSchema antes de usar. */
+  extractionMap: Record<string, unknown> | null;
+  active: boolean;
+  lastCrawledAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExternalListing {
+  id: string;
+  sourceId: string;
+  tenantId: string;
+  url: string;
+  title: string;
+  price: number | null;
+  neighborhood: string | null;
+  city: string | null;
+  bedrooms: number | null;
+  parkingSpots: number | null;
+  areaTotal: number | null;
+  contentHash: string;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}

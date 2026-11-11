@@ -15,6 +15,8 @@ function createDatabase(): ReturnType<typeof getDb> {
     properties: [],
     auditLogs: [],
     leads: [],
+    externalSources: [],
+    externalListings: [],
   };
 }
 

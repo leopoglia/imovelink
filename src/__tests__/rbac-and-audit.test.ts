@@ -25,6 +25,8 @@ describe("RBAC e Auditoria de Imóveis", () => {
         properties: SEED_PROPERTIES,
         leads: SEED_LEADS,
         auditLogs: SEED_AUDIT_LOGS,
+        externalSources: [],
+        externalListings: [],
       }),
     );
   });

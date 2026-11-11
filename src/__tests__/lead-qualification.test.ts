@@ -25,6 +25,8 @@ describe("Captação e qualificação de contatos da vitrine", () => {
         properties: SEED_PROPERTIES,
         leads: SEED_LEADS,
         auditLogs: SEED_AUDIT_LOGS,
+        externalSources: [],
+        externalListings: [],
       }),
     );
   });

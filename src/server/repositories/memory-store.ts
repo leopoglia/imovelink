@@ -1,4 +1,6 @@
 import {
+  ExternalListing,
+  ExternalSource,
   Lead,
   Property,
   PropertyAuditLog,
@@ -19,6 +21,8 @@ export interface ImovelinkDatabase {
   properties: Property[];
   auditLogs: PropertyAuditLog[];
   leads: Lead[];
+  externalSources: ExternalSource[];
+  externalListings: ExternalListing[];
 }
 
 declare global {
@@ -40,6 +44,9 @@ export function getDb(): ImovelinkDatabase {
       properties: structuredClone(SEED_PROPERTIES),
       auditLogs: structuredClone(SEED_AUDIT_LOGS),
       leads: structuredClone(SEED_LEADS),
+      // Não há semente de fontes externas: elas nascem do cadastro do gestor.
+      externalSources: [],
+      externalListings: [],
     };
   }
   return globalThis.__IMOVELINK_DB__;
