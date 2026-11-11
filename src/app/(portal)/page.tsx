@@ -97,11 +97,19 @@ export default function DashboardHomePage() {
             {propertiesPending || propertiesError ? "—" : sold.length}
           </dd>
         </div>
-        <div className="stat-card">
-          <dt className="stat-label">Novos em {DIAS_DA_JANELA} dias</dt>
+        <div
+          className="stat-card"
+          title={`Cadastrados nos últimos ${DIAS_DA_JANELA} dias`}
+        >
+          <dt className="stat-label">
+            Imóveis novos
+            <span className="sr-only">
+              {" "}
+              nos últimos {DIAS_DA_JANELA} dias
+            </span>
+          </dt>
           <dd className="stat-value">
             {propertiesPending || propertiesError ? "—" : novosNaJanela}
-            <small>imóveis cadastrados</small>
           </dd>
         </div>
       </dl>
