@@ -33,9 +33,9 @@ Abra `http://localhost:3000`. A vitrine demonstrativa fica em `/vitrine/catolica
 
 Para ativar a interpretação por IA, preencha `GEMINI_API_KEY` em `.env.local` com uma chave do Google AI Studio e reinicie o servidor. `GEMINI_MODEL` permite escolher o modelo; o padrão é `gemini-3.5-flash-lite`. Execute `npm run ai:check` para verificar a chave, o modelo e uma resposta estruturada real. Sem chave, a interface identifica a busca local. A chave não deve ser exposta em variáveis `NEXT_PUBLIC_`.
 
-Para configurar PostgreSQL, siga [POSTGRESQL.md](docs/POSTGRESQL.md). Após preencher `DATABASE_URL`, execute `npm run db:check`, `npm run db:migrate` e `npm run db:import`. A importação inicial exige destino vazio e preserva o arquivo local.
+Para configurar PostgreSQL, preencha `DATABASE_URL` e execute `npm run db:check`, `npm run db:migrate` e `npm run db:import`. A importação inicial exige destino vazio e preserva o arquivo local.
 
-Para definir a senha de uma conta existente, execute `npm run auth:set-password` no terminal. A senha não é exibida nem recebida como argumento. Consulte [AUTENTICACAO.md](docs/AUTENTICACAO.md) para sessões, permissões e configuração de produção.
+Para definir a senha de uma conta existente, execute `npm run auth:set-password` no terminal. A senha não é exibida nem recebida como argumento.
 
 ## Verificar
 
@@ -57,17 +57,7 @@ src/server/repositories/  Acesso ao armazenamento
 src/server/seeds/         Dados de demonstração
 src/types/                Tipos do domínio
 src/__tests__/            Testes automatizados
-docs/                     Arquitetura, busca e preparação para autoria
 ```
-
-## Documentação
-
-- [Arquitetura e requisitos atuais](docs/ARCHITECTURE_AND_REQUIREMENTS.md).
-- [Funcionamento e configuração da busca](docs/BUSCA_INTELIGENTE.md).
-- [Conexão, migrations e importação PostgreSQL](docs/POSTGRESQL.md).
-- [Autenticação, primeiro acesso e permissões](docs/AUTENTICACAO.md).
-- [Preparação para a prova de autoria](docs/GUIA_DEFESA_TCC.md).
-- [Revisão do portfólio e pendências](docs/REVISAO_PORTFOLIO_2026-11-10.md).
 
 ## Pendências para produção e portfólio
 
