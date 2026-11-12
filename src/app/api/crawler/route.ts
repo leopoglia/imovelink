@@ -64,6 +64,8 @@ const EXPLICACAO: Record<string, string> = {
     "O site recusou o acesso ao nosso coletor (HTTP 403). Ele não permite leitura automatizada desta página.",
   NOT_HTML: "O endereço não devolveu uma página HTML.",
   TIMEOUT: "O site demorou demais para responder.",
+  AI_TIMEOUT:
+    "A análise da página passou do tempo limite. Páginas muito grandes são mais difíceis de interpretar; tente a URL de uma listagem filtrada, com menos resultados por página.",
   NETWORK_ERROR: "Não foi possível conectar ao site. Tente novamente.",
   PROVIDER_UNAVAILABLE:
     "O serviço de IA está indisponível no momento. Tente novamente em instantes.",

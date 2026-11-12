@@ -16,7 +16,10 @@ import {
 
 /** Atributos que ajudam a identificar campos; o resto é peso morto no prompt. */
 const ATRIBUTOS_UTEIS = new Set(["class", "id", "href", "title", "alt"]);
-const LIMITE_HTML = 60_000;
+// 30 KB já mostram vários anúncios repetidos, que é o que o modelo precisa para
+// inferir os seletores. Acima disso a resposta passa do tempo limite em páginas
+// grandes, sem ganho de precisão.
+const LIMITE_HTML = 30_000;
 
 /**
  * Reduz a página ao que importa para inferir seletores: estrutura, classes e
@@ -31,8 +34,31 @@ export function condensarHtml(html: string, limite = LIMITE_HTML): string {
       if (!ATRIBUTOS_UTEIS.has(atributo)) delete elemento.attribs[atributo];
     }
   });
-  const corpo = $("body").html() ?? $.html();
-  return corpo.replace(/\s+/g, " ").replace(/> </g, "><").trim().slice(0, limite);
+  const corpo = ($("body").html() ?? $.html())
+    .replace(/\s+/g, " ")
+    .replace(/> </g, "><")
+    .trim();
+  return recortarEmTornoDosAnuncios(corpo, limite);
+}
+
+/**
+ * Cortar sempre do começo é ingênuo: em sites com cabeçalho e menu extensos os
+ * anúncios só aparecem depois do limite, e o modelo não veria nenhum. O preço é
+ * âncora confiável numa listagem de imóveis, então a janela começa um pouco
+ * antes do primeiro, para incluir a abertura do cartão.
+ */
+const FOLGA_ANTES = 2000;
+
+export function recortarEmTornoDosAnuncios(
+  corpo: string,
+  limite: number,
+): string {
+  if (corpo.length <= limite) return corpo;
+  const primeiroPreco = corpo.search(/R\$\s?[0-9]/);
+  if (primeiroPreco === -1 || primeiroPreco <= limite - FOLGA_ANTES)
+    return corpo.slice(0, limite);
+  const inicio = Math.max(0, primeiroPreco - FOLGA_ANTES);
+  return corpo.slice(inicio, inicio + limite);
 }
 
 const campoJson = {
@@ -118,6 +144,14 @@ function semNulos(bruto: unknown): unknown {
   return saida;
 }
 
+export class DiscoveryError extends Error {
+  code: string;
+  constructor(code: string) {
+    super("Não foi possível descobrir como ler os anúncios desta página.");
+    this.code = code;
+  }
+}
+
 /** Falhas de capacidade do provedor são temporárias e valem nova tentativa. */
 const CODIGOS_TEMPORARIOS = new Set(["PROVIDER_UNAVAILABLE", "RATE_LIMITED"]);
 const ESPERAS_MS = [1500, 4000];
@@ -143,19 +177,13 @@ async function pedirMapaAoModelo(
         erro && typeof erro === "object" && "code" in erro
           ? String((erro as { code: unknown }).code)
           : "";
+      // O tempo limite aqui é do modelo, não do site: não confundir o gestor.
+      if (codigo === "TIMEOUT") throw new DiscoveryError("AI_TIMEOUT");
       const ultima = tentativa >= ESPERAS_MS.length;
       if (ultima || !CODIGOS_TEMPORARIOS.has(codigo) || signal?.aborted)
         throw erro;
       await dormir(ESPERAS_MS[tentativa]);
     }
-  }
-}
-
-export class DiscoveryError extends Error {
-  code: string;
-  constructor(code: string) {
-    super("Não foi possível descobrir como ler os anúncios desta página.");
-    this.code = code;
   }
 }
 

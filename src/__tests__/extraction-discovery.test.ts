@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { generateGeminiJson } from "@/server/services/gemini.mjs";
 import {
   condensarHtml,
+  recortarEmTornoDosAnuncios,
   descobrirMapaExtracao,
   DiscoveryError,
 } from "@/server/services/extraction-discovery";
@@ -82,6 +83,34 @@ describe("Condensação do HTML enviado ao modelo", () => {
   it("respeita o limite de tamanho", () => {
     expect(condensarHtml(`<body>${"<div>a</div>".repeat(500)}</body>`, 100))
       .toHaveLength(100);
+  });
+});
+
+describe("Recorte da janela enviada ao modelo", () => {
+  it("devolve o texto inteiro quando cabe no limite", () => {
+    expect(recortarEmTornoDosAnuncios("abc", 100)).toBe("abc");
+  });
+
+  it("corta do começo quando os anúncios aparecem cedo", () => {
+    const corpo = "inicio R$ 100.000 " + "x".repeat(500);
+    expect(recortarEmTornoDosAnuncios(corpo, 50).startsWith("inicio")).toBe(
+      true,
+    );
+  });
+
+  it("desloca a janela quando o primeiro preço está além do limite", () => {
+    // Caso real: na Piermann o primeiro preço fica na posição 39.444.
+    const corpo = "c".repeat(39_444) + "R$ 250.000 anuncio" + "d".repeat(5000);
+    const janela = recortarEmTornoDosAnuncios(corpo, 30_000);
+    expect(janela).toContain("R$ 250.000");
+    // A janela é limitada pelo fim do texto quando o preço está perto dele.
+    expect(janela.length).toBeLessThanOrEqual(30_000);
+    expect(janela.startsWith("c")).toBe(true);
+  });
+
+  it("não quebra quando não há preço nenhum", () => {
+    const corpo = "y".repeat(50_000);
+    expect(recortarEmTornoDosAnuncios(corpo, 1000)).toHaveLength(1000);
   });
 });
 
@@ -182,6 +211,17 @@ describe("Descoberta do mapa de extração", () => {
     await esperado;
     expect(generateGeminiJson).toHaveBeenCalledTimes(3);
     vi.useRealTimers();
+  });
+
+  it("não culpa o site quando quem passou do tempo foi o modelo", async () => {
+    vi.mocked(generateGeminiJson).mockRejectedValue(
+      Object.assign(new Error("timeout"), { code: "TIMEOUT" }),
+    );
+    await expect(descobrirMapaExtracao(HTML, BASE)).rejects.toMatchObject({
+      code: "AI_TIMEOUT",
+    });
+    // Tempo limite do modelo não é falha temporária de capacidade: não repete.
+    expect(generateGeminiJson).toHaveBeenCalledTimes(1);
   });
 
   it("não insiste quando a falha não é temporária", async () => {
