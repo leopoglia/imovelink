@@ -17,7 +17,8 @@ function hiddenQuestion(prompt) {
       process.stdin.setRawMode(false);
       process.stdin.pause();
       process.stdout.write("\n");
-      error ? reject(error) : resolve(value);
+      if (error) reject(error);
+      else resolve(value);
     }
     function onKey(text, key = {}) {
       if (key.ctrl && key.name === "c") return finish(new Error("CANCELLED"));

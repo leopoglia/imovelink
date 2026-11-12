@@ -26,7 +26,6 @@ export interface ImovelinkDatabase {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var __IMOVELINK_DB__: ImovelinkDatabase | undefined;
 }
 

@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     pathname?.startsWith("/vitrine") || pathname?.startsWith("/login");
   const { data: settings } = useQuery({
     queryKey: settingsQueryKey(currentTenant.id, currentUser.id),
-    queryFn: () => fetchSettings(currentTenant.id, currentUser.id),
+    queryFn: () => fetchSettings(),
     enabled: isAuthenticated && !publicPage,
     retry: false,
   });

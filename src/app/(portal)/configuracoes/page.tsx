@@ -298,7 +298,7 @@ export default function ConfiguracoesPage() {
   const [section, setSection] = useState<Section>("profile");
   const query = useQuery({
     queryKey: settingsQueryKey(currentTenant.id, currentUser.id),
-    queryFn: () => fetchSettings(currentTenant.id, currentUser.id),
+    queryFn: () => fetchSettings(),
     enabled: isAuthenticated,
     retry: false,
   });

@@ -27,6 +27,9 @@ jobs:
       - name: Run TypeScript Static Analysis
         run: npm run typecheck
 
+      - name: Run ESLint Static Analysis
+        run: npm run lint
+
       - name: Run Automated TDD Test Suite with Coverage Gate (Vitest)
         run: npm run coverage
 

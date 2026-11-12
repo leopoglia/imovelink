@@ -121,6 +121,13 @@ export default function DashboardHomePage() {
             {propertiesPending || propertiesError ? "—" : novosNaJanela}
           </dd>
         </div>
+        <div className="stat-card">
+          <dt className="stat-label">De outros sites</dt>
+          <dd className="stat-value">
+            {propertiesPending || propertiesError ? "—" : externos.length}
+            <small>indexados pelo crawler</small>
+          </dd>
+        </div>
       </dl>
 
       <section aria-labelledby="portfolio-heading">
