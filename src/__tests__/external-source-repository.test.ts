@@ -36,6 +36,7 @@ const anuncio = (over: Partial<ExternalListing> = {}): ExternalListing => ({
   bedrooms: 2,
   parkingSpots: 1,
   areaTotal: 48.4,
+  imageUrl: null,
   contentHash: "hash-a",
   firstSeenAt: "2026-11-01T10:00:00.000Z",
   lastSeenAt: "2026-11-01T10:00:00.000Z",
@@ -65,6 +66,23 @@ describe("Repositório de fontes externas", () => {
     expect(lista[0].listUrl).toContain("poderimoveis");
   });
 
+  it("reanalisar a mesma URL atualiza a fonte em vez de duplicar", async () => {
+    await externalSourceRepository.create(fonte({ lastError: "FALHOU" }));
+    await externalSourceRepository.create(
+      fonte({
+        id: "outro-id",
+        name: "Nome corrigido",
+        extractionMap: { item: "div.novo" },
+      }),
+    );
+    expect(db.externalSources).toHaveLength(1);
+    expect(db.externalSources[0].name).toBe("Nome corrigido");
+    expect(db.externalSources[0].extractionMap).toEqual({ item: "div.novo" });
+    // O identificador e a falha anterior não sobrevivem a uma correção.
+    expect(db.externalSources[0].id).toBe("fonte-1");
+    expect(db.externalSources[0].lastError).toBeNull();
+  });
+
   it("não mostra fonte de outra imobiliária", async () => {
     await externalSourceRepository.create(fonte({ tenantId: OUTRO_TENANT }));
     expect(await externalSourceRepository.listByTenant(TENANT)).toEqual([]);
@@ -74,11 +92,20 @@ describe("Repositório de fontes externas", () => {
   });
 
   it("ordena as fontes da mais recente para a mais antiga", async () => {
+    // URLs distintas: a mesma URL seria tratada como correção da mesma fonte.
     await externalSourceRepository.create(
-      fonte({ id: "a", createdAt: "2026-11-01T00:00:00.000Z" }),
+      fonte({
+        id: "a",
+        listUrl: "https://a.com/imoveis",
+        createdAt: "2026-11-01T00:00:00.000Z",
+      }),
     );
     await externalSourceRepository.create(
-      fonte({ id: "b", createdAt: "2026-11-09T00:00:00.000Z" }),
+      fonte({
+        id: "b",
+        listUrl: "https://b.com/imoveis",
+        createdAt: "2026-11-09T00:00:00.000Z",
+      }),
     );
     const lista = await externalSourceRepository.listByTenant(TENANT);
     expect(lista.map((f) => f.id)).toEqual(["b", "a"]);

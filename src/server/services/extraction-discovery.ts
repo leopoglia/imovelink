@@ -60,6 +60,7 @@ export const extractionMapJsonSchema = {
         bedrooms: campoJson,
         parkingSpots: campoJson,
         areaTotal: campoJson,
+        image: campoJson,
       },
       required: [
         "url",
@@ -69,6 +70,7 @@ export const extractionMapJsonSchema = {
         "bedrooms",
         "parkingSpots",
         "areaTotal",
+        "image",
       ],
       additionalProperties: false,
     },
@@ -85,6 +87,7 @@ const INSTRUCAO =
   'Use "attr" quando o valor estiver num atributo, como href do link ou alt da imagem; caso contrário deixe attr nulo e o texto do elemento será usado. ' +
   'Use "match" apenas para isolar parte do texto por expressão regular, com o valor no grupo 1. ' +
   'Quando o número estiver ao lado de um ícone, identifique pelo rótulo do ícone, por exemplo li:has(img[title="Quartos"]). ' +
+  'Para "image", aponte a foto principal do anúncio e use attr "src" (ou "data-src" quando a imagem for carregada depois). ' +
   "Campos que a página não exibe devem vir nulos; não invente seletor. " +
   "url e title são obrigatórios. Prefira classes estáveis a posições como nth-child.";
 

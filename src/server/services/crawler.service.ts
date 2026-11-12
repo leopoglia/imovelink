@@ -55,6 +55,7 @@ function hashConteudo(anuncio: ExtractedListing): string {
         anuncio.bedrooms,
         anuncio.parkingSpots,
         anuncio.areaTotal,
+        anuncio.imageUrl,
       ].join("|"),
     )
     .digest("hex");
@@ -78,6 +79,7 @@ function paraRegistro(
     bedrooms: anuncio.bedrooms ?? null,
     parkingSpots: anuncio.parkingSpots ?? null,
     areaTotal: anuncio.areaTotal ?? null,
+    imageUrl: anuncio.imageUrl ?? null,
     contentHash: hashConteudo(anuncio),
     firstSeenAt: agora,
     lastSeenAt: agora,

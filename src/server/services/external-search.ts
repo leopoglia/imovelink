@@ -78,6 +78,7 @@ export function filtrarExternos(
         bedrooms: anuncio.bedrooms,
         parkingSpots: anuncio.parkingSpots,
         areaTotal: anuncio.areaTotal,
+        imageUrl: anuncio.imageUrl,
         score: TETO,
         matchReasons: motivos.length ? motivos : ["Anúncio de outro site"],
       };

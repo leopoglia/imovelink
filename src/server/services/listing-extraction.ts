@@ -29,6 +29,7 @@ export const extractionMapSchema = z.object({
     bedrooms: campoSchema.optional(),
     parkingSpots: campoSchema.optional(),
     areaTotal: campoSchema.optional(),
+    image: campoSchema.optional(),
   }),
 });
 
@@ -44,6 +45,7 @@ export interface ExtractedListing {
   bedrooms?: number;
   parkingSpots?: number;
   areaTotal?: number;
+  imageUrl?: string;
 }
 
 /** "R$160.000,00" e "1.234,5" usam ponto de milhar e vírgula decimal. */
@@ -118,6 +120,17 @@ export function extrairAnuncios(
       return;
     }
 
+    const imagemBruta = lerCampo($, raiz, mapa.fields.image);
+    // A foto costuma vir em caminho relativo, igual ao link do anúncio.
+    let imageUrl: string | undefined;
+    if (imagemBruta) {
+      try {
+        imageUrl = new URL(imagemBruta, baseUrl).toString();
+      } catch {
+        imageUrl = undefined;
+      }
+    }
+
     const precoTexto = lerCampo($, raiz, mapa.fields.price);
     const enderecoTexto = lerCampo($, raiz, mapa.fields.address);
     const numero = (campo: Campo | undefined) => {
@@ -133,6 +146,7 @@ export function extrairAnuncios(
       bedrooms: numero(mapa.fields.bedrooms),
       parkingSpots: numero(mapa.fields.parkingSpots),
       areaTotal: numero(mapa.fields.areaTotal),
+      imageUrl,
     });
   });
 

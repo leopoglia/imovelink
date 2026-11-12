@@ -230,6 +230,8 @@ export interface ExternalListing {
   bedrooms: number | null;
   parkingSpots: number | null;
   areaTotal: number | null;
+  /** URL da foto no site de origem; o arquivo nunca é copiado. */
+  imageUrl: string | null;
   contentHash: string;
   firstSeenAt: string;
   lastSeenAt: string;
@@ -251,6 +253,7 @@ export interface ExternalResultItem {
   bedrooms: number | null;
   parkingSpots: number | null;
   areaTotal: number | null;
+  imageUrl: string | null;
   /** Comparável ao hybridScore dos imóveis próprios, para ordenar na mesma lista. */
   score: number;
   matchReasons: string[];

@@ -314,7 +314,16 @@ export default function BuscaIAPage() {
                         key={externo.id}
                       >
                         <div className="ai-result-image">
-                          <Internet width={26} height={26} aria-hidden="true" />
+                          {externo.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={externo.imageUrl} alt="" loading="lazy" />
+                          ) : (
+                            <Internet
+                              width={26}
+                              height={26}
+                              aria-hidden="true"
+                            />
+                          )}
                         </div>
                         <div className="ai-result-body">
                           <div className="ai-result-top">

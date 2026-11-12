@@ -361,74 +361,92 @@ export default function ImoveisPortfolioPage() {
       )}
 
       {activeTab === "EXTERNAL" && (
-        <section aria-label="Anúncios de outros sites">
-          <p className="ai-search-note">
+        <section aria-label="Anúncios de outros sites" className="space-y-4">
+          <p className="text-xs text-slate-500">
             Anúncios indexados de outros sites. São somente leitura: o Imovelink
-            guarda os dados e o link, e o anúncio continua na origem.
+            guarda os dados e o endereço da foto, que continua sendo servida
+            pelo site de origem.
           </p>
           {!externalListings.length ? (
-            <p className="ai-search-note">
+            <p className="text-xs text-slate-500">
               Nenhum anúncio externo ainda. Cadastre uma fonte na aba Crawler.
             </p>
           ) : (
-            <div className="crawler-table-scroll">
-              <table className="crawler-table">
-                <caption className="sr-only">
-                  Anúncios indexados de outros sites
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Fonte</th>
-                    <th scope="col">Título</th>
-                    <th scope="col">Preço</th>
-                    <th scope="col">Local</th>
-                    <th scope="col">Quartos</th>
-                    <th scope="col">Área</th>
-                    <th scope="col">Visto em</th>
-                    <th scope="col">Link</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {externalListings.map((anuncio) => (
-                    <tr key={anuncio.id}>
-                      <td>{nomeDaFonte.get(anuncio.sourceId) ?? "Outro site"}</td>
-                      <td>{anuncio.title}</td>
-                      <td>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {externalListings.map((anuncio) => (
+                <a
+                  key={anuncio.id}
+                  href={anuncio.url}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="rounded-2xl bg-white border border-dashed border-slate-300 overflow-hidden flex flex-col justify-between hover:border-slate-400 transition"
+                >
+                  <div>
+                    <div className="relative h-44 bg-slate-100 flex items-center justify-center">
+                      {anuncio.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={anuncio.imageUrl}
+                          alt={anuncio.title}
+                          loading="lazy"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Internet
+                          aria-hidden="true"
+                          className="w-7 h-7 text-slate-400"
+                        />
+                      )}
+                      <div className="absolute top-3 left-3">
+                        <span className="px-2.5 py-1 rounded-lg bg-white/95 text-[10px] font-semibold text-slate-700">
+                          {nomeDaFonte.get(anuncio.sourceId) ?? "Outro site"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 space-y-2">
+                      <div>
+                        <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                          <MapPin
+                            aria-hidden="true"
+                            className="w-3.5 h-3.5 text-brand-600"
+                          />
+                          {[anuncio.neighborhood, anuncio.city]
+                            .filter(Boolean)
+                            .join(" • ") || "Local não informado"}
+                        </p>
+                        <h3 className="text-sm font-semibold text-slate-900 mt-1 line-clamp-2">
+                          {anuncio.title}
+                        </h3>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+                        <span>{anuncio.bedrooms ?? "—"} dorms</span>
+                        <span>{anuncio.parkingSpots ?? "—"} vagas</span>
+                        <span>
+                          {anuncio.areaTotal ? `${anuncio.areaTotal} m²` : "—"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-4 py-3.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">
+                        Anunciado por terceiro
+                      </span>
+                      <span className="text-base font-semibold text-slate-900">
                         {anuncio.price === null
                           ? "Consulte"
-                          : anuncio.price.toLocaleString("pt-BR", {
-                              style: "currency",
-                              currency: "BRL",
-                              maximumFractionDigits: 0,
-                            })}
-                      </td>
-                      <td>
-                        {[anuncio.neighborhood, anuncio.city]
-                          .filter(Boolean)
-                          .join(", ") || "—"}
-                      </td>
-                      <td>{anuncio.bedrooms ?? "—"}</td>
-                      <td>
-                        {anuncio.areaTotal ? `${anuncio.areaTotal} m²` : "—"}
-                      </td>
-                      <td>
-                        {new Date(anuncio.lastSeenAt).toLocaleDateString(
-                          "pt-BR",
-                        )}
-                      </td>
-                      <td>
-                        <a
-                          href={anuncio.url}
-                          target="_blank"
-                          rel="noopener noreferrer nofollow"
-                        >
-                          abrir
-                        </a>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                          : `R$ ${anuncio.price.toLocaleString("pt-BR")}`}
+                      </span>
+                    </div>
+                    <span className="button-secondary button-compact">
+                      Ver na origem
+                    </span>
+                  </div>
+                </a>
+              ))}
             </div>
           )}
         </section>

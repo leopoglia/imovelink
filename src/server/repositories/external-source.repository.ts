@@ -37,14 +37,40 @@ export class ExternalSourceRepository {
     );
   }
 
+  /**
+   * Cadastra a fonte ou atualiza a existente com a mesma URL. Reanalisar uma
+   * página é como o gestor corrige um mapa que parou de funcionar.
+   */
   async create(source: ExternalSource): Promise<ExternalSource> {
     if (isPostgresConfigured()) {
       const sql = getPostgres();
       const [row] =
-        await sql`INSERT INTO imovelink.external_sources ${sql(databaseRecord(source))} RETURNING *`;
+        await sql`INSERT INTO imovelink.external_sources ${sql(databaseRecord(source))}
+          ON CONFLICT (tenant_id, list_url) DO UPDATE SET
+            name = EXCLUDED.name,
+            extraction_map = EXCLUDED.extraction_map,
+            pagination_template = EXCLUDED.pagination_template,
+            max_pages = EXCLUDED.max_pages,
+            last_error = NULL,
+            updated_at = NOW()
+          RETURNING *`;
       return domainRecord<ExternalSource>(row);
     }
-    getDb().externalSources.unshift(source);
+    const db = getDb();
+    const existente = db.externalSources.find(
+      (item) =>
+        item.tenantId === source.tenantId && item.listUrl === source.listUrl,
+    );
+    if (existente) {
+      Object.assign(existente, source, {
+        id: existente.id,
+        createdAt: existente.createdAt,
+        lastCrawledAt: existente.lastCrawledAt,
+        lastError: null,
+      });
+      return existente;
+    }
+    db.externalSources.unshift(source);
     return source;
   }
 
@@ -141,6 +167,7 @@ export class ExternalSourceRepository {
             bedrooms = EXCLUDED.bedrooms,
             parking_spots = EXCLUDED.parking_spots,
             area_total = EXCLUDED.area_total,
+            image_url = EXCLUDED.image_url,
             content_hash = EXCLUDED.content_hash,
             last_seen_at = NOW()`;
       }
