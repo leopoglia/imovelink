@@ -208,6 +208,8 @@ export interface ExternalSource {
   listUrl: string;
   /** JSON vindo do banco; validar com extractionMapSchema antes de usar. */
   extractionMap: Record<string, unknown> | null;
+  /** URL do logo no site de origem; o arquivo nunca é copiado. */
+  logoUrl: string | null;
   /** URL com {n} no lugar do número da página; nulo quando a fonte tem página única. */
   paginationTemplate: string | null;
   maxPages: number;
@@ -245,6 +247,7 @@ export interface ExternalListing {
 export interface ExternalResultItem {
   id: string;
   sourceName: string;
+  sourceLogoUrl: string | null;
   url: string;
   title: string;
   price: number | null;

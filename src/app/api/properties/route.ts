@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
         externalSources: externalSources?.map((fonte) => ({
           id: fonte.id,
           name: fonte.name,
+          logoUrl: fonte.logoUrl,
         })),
         total: properties.length,
       },

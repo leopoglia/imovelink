@@ -54,7 +54,7 @@ export default function ImoveisPortfolioPage() {
     properties: Property[];
     auditLogs: PropertyAuditLog[];
     externalListings?: ExternalListing[];
-    externalSources?: { id: string; name: string }[];
+    externalSources?: { id: string; name: string; logoUrl: string | null }[];
   }>({
     queryKey: ["properties", currentTenant.id],
     queryFn: async () => {
@@ -69,8 +69,8 @@ export default function ImoveisPortfolioPage() {
   const properties = data?.properties ?? [];
   const auditLogs = data?.auditLogs ?? [];
   const externalListings = data?.externalListings ?? [];
-  const nomeDaFonte = new Map(
-    (data?.externalSources ?? []).map((fonte) => [fonte.id, fonte.name]),
+  const fontePorId = new Map(
+    (data?.externalSources ?? []).map((fonte) => [fonte.id, fonte]),
   );
 
   const createPropertyMutation = useMutation({
@@ -398,8 +398,17 @@ export default function ImoveisPortfolioPage() {
                         />
                       )}
                       <div className="absolute top-3 left-3">
-                        <span className="px-2.5 py-1 rounded-lg bg-white/95 text-[10px] font-semibold text-slate-700">
-                          {nomeDaFonte.get(anuncio.sourceId) ?? "Outro site"}
+                        <span className="px-2.5 py-1 rounded-lg bg-white/95 text-[10px] font-semibold text-slate-700 flex items-center gap-1.5">
+                          {fontePorId.get(anuncio.sourceId)?.logoUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={fontePorId.get(anuncio.sourceId)!.logoUrl!}
+                              alt=""
+                              className="crawler-logo-preview"
+                            />
+                          )}
+                          {fontePorId.get(anuncio.sourceId)?.name ??
+                            "Outro site"}
                         </span>
                       </div>
                     </div>

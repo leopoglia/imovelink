@@ -2306,3 +2306,18 @@ textarea.field-control {
   gap: 2px;
   min-width: 0;
 }
+.crawler-logo-preview {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+  object-fit: contain;
+  background: #fff;
+}
+.ai-result-external-badge .crawler-logo-preview {
+  width: 14px;
+  height: 14px;
+}
+.ai-result-external-badge:has(.crawler-logo-preview)::before {
+  display: none;
+}

@@ -14,6 +14,7 @@ const fonte = (over: Partial<ExternalSource> = {}): ExternalSource => ({
   name: "Poder Imóveis",
   listUrl: "https://www.poderimoveis.com/imoveis",
   extractionMap: { item: "div.ui__card" },
+  logoUrl: null,
   paginationTemplate: null,
   maxPages: 5,
   active: true,

@@ -34,6 +34,7 @@ interface Analise {
   extractionMap: ExtractionMap;
   sample: ExtractedListing[];
   total: number;
+  logoUrl: string | null;
   paginationTemplate: string | null;
   paginationReason: string | null;
 }
@@ -56,6 +57,7 @@ export default function CrawlerPage() {
   const [nome, setNome] = useState("");
   const [analise, setAnalise] = useState<Analise | null>(null);
   const [maxPages, setMaxPages] = useState(5);
+  const [logoUrl, setLogoUrl] = useState("");
   const [fonteAberta, setFonteAberta] = useState<string | null>(null);
   const dialogo = useRef<HTMLDialogElement>(null);
   const [erro, setErro] = useState("");
@@ -89,6 +91,7 @@ export default function CrawlerPage() {
     onSuccess: (resultado: Analise) => {
       setAnalise(resultado);
       if (!nome) setNome(new URL(resultado.listUrl).hostname);
+      setLogoUrl(resultado.logoUrl ?? "");
     },
     onError: falhar,
   });
@@ -100,6 +103,7 @@ export default function CrawlerPage() {
         name: nome,
         listUrl: analise!.listUrl,
         extractionMap: analise!.extractionMap,
+        logoUrl: logoUrl.trim() || null,
         paginationTemplate: analise!.paginationTemplate,
         maxPages,
       }),
@@ -107,6 +111,7 @@ export default function CrawlerPage() {
       setAnalise(null);
       setListUrl("");
       setNome("");
+      setLogoUrl("");
       invalidar();
     },
     onError: falhar,
@@ -262,12 +267,29 @@ export default function CrawlerPage() {
               </table>
             </div>
             <div className="crawler-form">
+              {logoUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={logoUrl}
+                  alt=""
+                  className="crawler-logo-preview"
+                  onError={() => setLogoUrl("")}
+                />
+              )}
               <input
                 value={nome}
                 onChange={(evento) => setNome(evento.target.value)}
                 aria-label="Nome da fonte"
                 placeholder="Nome da fonte"
                 maxLength={120}
+              />
+              <input
+                type="url"
+                value={logoUrl}
+                onChange={(evento) => setLogoUrl(evento.target.value)}
+                aria-label="Endereço do logo da imobiliária"
+                placeholder="Logo (detectado automaticamente)"
+                maxLength={2000}
               />
               {analise.paginationTemplate && (
                 <label className="crawler-max-pages">
@@ -331,7 +353,16 @@ export default function CrawlerPage() {
                     setFonteAberta(fonteAberta === fonte.id ? null : fonte.id)
                   }
                 >
-                  <Globe aria-hidden="true" width={14} height={14} />
+                  {fonte.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={fonte.logoUrl}
+                      alt=""
+                      className="crawler-logo-preview"
+                    />
+                  ) : (
+                    <Globe aria-hidden="true" width={14} height={14} />
+                  )}
                   <strong>{fonte.name}</strong>
                   <NavArrowDown
                     aria-hidden="true"

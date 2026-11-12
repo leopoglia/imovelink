@@ -70,6 +70,7 @@ export function filtrarExternos(
       return {
         id: anuncio.id,
         sourceName: fonte?.name ?? "Outro site",
+        sourceLogoUrl: fonte?.logoUrl ?? null,
         url: anuncio.url,
         title: anuncio.title,
         price: anuncio.price,

@@ -49,6 +49,7 @@ export class ExternalSourceRepository {
           ON CONFLICT (tenant_id, list_url) DO UPDATE SET
             name = EXCLUDED.name,
             extraction_map = EXCLUDED.extraction_map,
+            logo_url = EXCLUDED.logo_url,
             pagination_template = EXCLUDED.pagination_template,
             max_pages = EXCLUDED.max_pages,
             last_error = NULL,

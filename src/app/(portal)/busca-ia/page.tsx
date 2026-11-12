@@ -329,6 +329,14 @@ export default function BuscaIAPage() {
                           <div className="ai-result-top">
                             <div>
                               <span className="ai-result-external-badge">
+                                {externo.sourceLogoUrl && (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={externo.sourceLogoUrl}
+                                    alt=""
+                                    className="crawler-logo-preview"
+                                  />
+                                )}
                                 {externo.sourceName}
                               </span>
                             </div>

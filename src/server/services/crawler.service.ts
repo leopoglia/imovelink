@@ -6,6 +6,7 @@ import { externalSourceRepository } from "@/server/repositories/external-source.
 import { buscarListagem } from "./crawler-fetch";
 import { descobrirMapaExtracao } from "./extraction-discovery";
 import { descobrirPaginacao, percorrerPaginas } from "./pagination";
+import { detectarLogo } from "./site-logo";
 import {
   extractionMapSchema,
   extrairAnuncios,
@@ -31,6 +32,7 @@ export const novaFonteSchema = z.object({
   name: z.string().trim().min(2).max(120),
   listUrl: z.string().trim().url().max(2000),
   extractionMap: extractionMapSchema,
+  logoUrl: z.string().trim().url().max(2000).nullable().default(null),
   paginationTemplate: z.string().trim().max(2100).nullable().default(null),
   maxPages: z.number().int().min(1).max(200).default(5),
 });
@@ -126,6 +128,7 @@ export class CrawlerService {
     return {
       listUrl: url.toString(),
       extractionMap: map,
+      logoUrl: detectarLogo(html, url.toString()),
       sample,
       total,
       paginationTemplate: paginacao.template,
@@ -152,6 +155,7 @@ export class CrawlerService {
       name: dados.name,
       listUrl: dados.listUrl,
       extractionMap: dados.extractionMap,
+      logoUrl: dados.logoUrl,
       paginationTemplate: dados.paginationTemplate,
       maxPages: dados.maxPages,
       active: true,
