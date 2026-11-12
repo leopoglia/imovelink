@@ -36,6 +36,14 @@ export function filtrarExternos(
     .filter((anuncio) => {
       const fonte = fontes.get(anuncio.sourceId);
       if (fonte && !fonte.active) return false;
+      // Aluguel tem valor mensal: comparar com preço de venda traria absurdos.
+      if (
+        query.purpose &&
+        query.purpose !== "BOTH" &&
+        anuncio.purpose &&
+        anuncio.purpose !== query.purpose
+      )
+        return false;
       if (query.minPrice !== undefined && (anuncio.price ?? 0) < query.minPrice)
         return false;
       if (
@@ -80,6 +88,7 @@ export function filtrarExternos(
         parkingSpots: anuncio.parkingSpots,
         areaTotal: anuncio.areaTotal,
         imageUrl: anuncio.imageUrl,
+        purpose: anuncio.purpose,
         score: TETO,
         matchReasons: motivos.length ? motivos : ["Anúncio de outro site"],
       };

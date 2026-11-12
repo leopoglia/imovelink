@@ -21,6 +21,7 @@ const schema = z.discriminatedUnion("action", [
       listUrl: z.string().trim().url().max(2000),
       extractionMap: extractionMapSchema,
       logoUrl: z.string().trim().url().max(2000).nullable().optional(),
+      purpose: z.enum(["SALE", "RENT"]).nullable().optional(),
       paginationTemplate: z.string().trim().max(2100).nullable().optional(),
       maxPages: z.number().int().min(1).max(200).optional(),
     })
@@ -144,6 +145,7 @@ export async function POST(request: NextRequest) {
           listUrl: body.listUrl,
           extractionMap: body.extractionMap,
           logoUrl: body.logoUrl ?? null,
+          purpose: body.purpose ?? null,
           paginationTemplate: body.paginationTemplate ?? null,
           maxPages: body.maxPages,
         }),

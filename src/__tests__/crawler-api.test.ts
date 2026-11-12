@@ -180,6 +180,7 @@ describe("Rota do crawler", () => {
       listUrl: "https://exemplo.com/x",
       extractionMap: { lixo: true },
       logoUrl: null,
+      purpose: null,
       paginationTemplate: null,
       maxPages: 5,
       active: true,

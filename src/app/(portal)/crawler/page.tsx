@@ -35,6 +35,7 @@ interface Analise {
   sample: ExtractedListing[];
   total: number;
   logoUrl: string | null;
+  purpose: "SALE" | "RENT" | null;
   paginationTemplate: string | null;
   paginationReason: string | null;
 }
@@ -58,6 +59,7 @@ export default function CrawlerPage() {
   const [analise, setAnalise] = useState<Analise | null>(null);
   const [maxPages, setMaxPages] = useState(5);
   const [logoUrl, setLogoUrl] = useState("");
+  const [finalidade, setFinalidade] = useState<"SALE" | "RENT" | "">("");
   const [fonteAberta, setFonteAberta] = useState<string | null>(null);
   const dialogo = useRef<HTMLDialogElement>(null);
   const [erro, setErro] = useState("");
@@ -92,6 +94,7 @@ export default function CrawlerPage() {
       setAnalise(resultado);
       if (!nome) setNome(new URL(resultado.listUrl).hostname);
       setLogoUrl(resultado.logoUrl ?? "");
+      setFinalidade(resultado.purpose ?? "");
     },
     onError: falhar,
   });
@@ -104,6 +107,7 @@ export default function CrawlerPage() {
         listUrl: analise!.listUrl,
         extractionMap: analise!.extractionMap,
         logoUrl: logoUrl.trim() || null,
+        purpose: finalidade || null,
         paginationTemplate: analise!.paginationTemplate,
         maxPages,
       }),
@@ -112,6 +116,7 @@ export default function CrawlerPage() {
       setListUrl("");
       setNome("");
       setLogoUrl("");
+      setFinalidade("");
       invalidar();
     },
     onError: falhar,
@@ -283,6 +288,19 @@ export default function CrawlerPage() {
                 placeholder="Nome da fonte"
                 maxLength={120}
               />
+              <label className="crawler-max-pages">
+                Finalidade
+                <select
+                  value={finalidade}
+                  onChange={(evento) =>
+                    setFinalidade(evento.target.value as "SALE" | "RENT" | "")
+                  }
+                >
+                  <option value="">Não definida</option>
+                  <option value="SALE">Venda</option>
+                  <option value="RENT">Locação</option>
+                </select>
+              </label>
               <input
                 type="url"
                 value={logoUrl}
@@ -387,6 +405,11 @@ export default function CrawlerPage() {
                   {fonte.lastCrawledAt
                     ? `coletado em ${new Date(fonte.lastCrawledAt).toLocaleString("pt-BR")}`
                     : "nunca coletado"}
+                  {fonte.purpose === "SALE"
+                    ? " · venda"
+                    : fonte.purpose === "RENT"
+                      ? " · locação"
+                      : " · finalidade não definida"}
                   {!fonte.paginationTemplate && " · página única"}
                   {!fonte.active && " · pausada"}
                 </span>

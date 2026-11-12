@@ -50,6 +50,7 @@ export class ExternalSourceRepository {
             name = EXCLUDED.name,
             extraction_map = EXCLUDED.extraction_map,
             logo_url = EXCLUDED.logo_url,
+            purpose = EXCLUDED.purpose,
             pagination_template = EXCLUDED.pagination_template,
             max_pages = EXCLUDED.max_pages,
             last_error = NULL,
@@ -186,6 +187,7 @@ export class ExternalSourceRepository {
             parking_spots = EXCLUDED.parking_spots,
             area_total = EXCLUDED.area_total,
             image_url = EXCLUDED.image_url,
+            purpose = EXCLUDED.purpose,
             content_hash = EXCLUDED.content_hash,
             last_seen_at = NOW()`;
       }

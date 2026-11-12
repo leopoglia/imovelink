@@ -344,6 +344,7 @@ export default function BuscaIAPage() {
                               {externo.price === null
                                 ? "Consulte"
                                 : formatPropertyPrice(externo.price)}
+                              {externo.purpose === "RENT" && <small>/mês</small>}
                             </strong>
                           </div>
                           <h3>{externo.title}</h3>

@@ -7,6 +7,7 @@ import { buscarListagem } from "./crawler-fetch";
 import { descobrirMapaExtracao } from "./extraction-discovery";
 import { descobrirPaginacao, percorrerPaginas } from "./pagination";
 import { detectarLogo } from "./site-logo";
+import { sugerirFinalidade } from "./listing-purpose";
 import {
   extractionMapSchema,
   extrairAnuncios,
@@ -33,6 +34,7 @@ export const novaFonteSchema = z.object({
   listUrl: z.string().trim().url().max(2000),
   extractionMap: extractionMapSchema,
   logoUrl: z.string().trim().url().max(2000).nullable().default(null),
+  purpose: z.enum(["SALE", "RENT"]).nullable().default(null),
   paginationTemplate: z.string().trim().max(2100).nullable().default(null),
   maxPages: z.number().int().min(1).max(200).default(5),
 });
@@ -67,6 +69,7 @@ function paraRegistro(
   anuncio: ExtractedListing,
   sourceId: string,
   tenantId: string,
+  purpose: ExternalListing["purpose"],
 ): ExternalListing {
   const agora = new Date().toISOString();
   return {
@@ -82,6 +85,7 @@ function paraRegistro(
     parkingSpots: anuncio.parkingSpots ?? null,
     areaTotal: anuncio.areaTotal ?? null,
     imageUrl: anuncio.imageUrl ?? null,
+    purpose,
     contentHash: hashConteudo(anuncio),
     firstSeenAt: agora,
     lastSeenAt: agora,
@@ -129,6 +133,7 @@ export class CrawlerService {
       listUrl: url.toString(),
       extractionMap: map,
       logoUrl: detectarLogo(html, url.toString()),
+      purpose: sugerirFinalidade(url.toString()),
       sample,
       total,
       paginationTemplate: paginacao.template,
@@ -156,6 +161,7 @@ export class CrawlerService {
       listUrl: dados.listUrl,
       extractionMap: dados.extractionMap,
       logoUrl: dados.logoUrl,
+      purpose: dados.purpose,
       paginationTemplate: dados.paginationTemplate,
       maxPages: dados.maxPages,
       active: true,
@@ -213,7 +219,9 @@ export class CrawlerService {
         );
       }
       const gravados = await externalSourceRepository.upsertListings(
-        anuncios.map((anuncio) => paraRegistro(anuncio, sourceId, tenantId)),
+        anuncios.map((anuncio) =>
+          paraRegistro(anuncio, sourceId, tenantId, fonte.purpose),
+        ),
       );
       await externalSourceRepository.registrarColeta(tenantId, sourceId, null);
       return { collected: gravados, pages: paginas };

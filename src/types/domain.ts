@@ -210,6 +210,8 @@ export interface ExternalSource {
   extractionMap: Record<string, unknown> | null;
   /** URL do logo no site de origem; o arquivo nunca é copiado. */
   logoUrl: string | null;
+  /** Venda ou locação; nulo quando a listagem mistura as duas. */
+  purpose: PropertyPurpose | null;
   /** URL com {n} no lugar do número da página; nulo quando a fonte tem página única. */
   paginationTemplate: string | null;
   maxPages: number;
@@ -234,6 +236,7 @@ export interface ExternalListing {
   areaTotal: number | null;
   /** URL da foto no site de origem; o arquivo nunca é copiado. */
   imageUrl: string | null;
+  purpose: PropertyPurpose | null;
   contentHash: string;
   firstSeenAt: string;
   lastSeenAt: string;
@@ -257,6 +260,7 @@ export interface ExternalResultItem {
   parkingSpots: number | null;
   areaTotal: number | null;
   imageUrl: string | null;
+  purpose: PropertyPurpose | null;
   /** Comparável ao hybridScore dos imóveis próprios, para ordenar na mesma lista. */
   score: number;
   matchReasons: string[];

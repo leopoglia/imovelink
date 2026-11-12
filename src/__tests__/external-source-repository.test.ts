@@ -15,6 +15,7 @@ const fonte = (over: Partial<ExternalSource> = {}): ExternalSource => ({
   listUrl: "https://www.poderimoveis.com/imoveis",
   extractionMap: { item: "div.ui__card" },
   logoUrl: null,
+  purpose: "SALE" as const,
   paginationTemplate: null,
   maxPages: 5,
   active: true,
@@ -38,6 +39,7 @@ const anuncio = (over: Partial<ExternalListing> = {}): ExternalListing => ({
   parkingSpots: 1,
   areaTotal: 48.4,
   imageUrl: null,
+  purpose: "SALE" as const,
   contentHash: "hash-a",
   firstSeenAt: "2026-11-01T10:00:00.000Z",
   lastSeenAt: "2026-11-01T10:00:00.000Z",
@@ -141,6 +143,20 @@ describe("Repositório de fontes externas", () => {
     await externalSourceRepository.remove(TENANT, "fonte-1");
     expect(db.externalSources).toEqual([]);
     expect(db.externalListings).toEqual([]);
+  });
+});
+
+describe("Separação entre venda e locação", () => {
+  it("guarda a finalidade declarada na fonte", async () => {
+    await externalSourceRepository.upsertListings([
+      anuncio({ purpose: "RENT", price: 2500 }),
+    ]);
+    expect(db.externalListings[0].purpose).toBe("RENT");
+  });
+
+  it("aceita fonte sem finalidade definida", async () => {
+    await externalSourceRepository.upsertListings([anuncio({ purpose: null })]);
+    expect(db.externalListings[0].purpose).toBeNull();
   });
 });
 

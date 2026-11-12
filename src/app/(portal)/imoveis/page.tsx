@@ -401,12 +401,17 @@ export default function ImoveisPortfolioPage() {
               <div className="px-4 py-3.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-2">
                 <div>
                   <span className="text-[10px] text-slate-400 block">
-                    Anunciado por terceiro
+                    {anuncio.purpose === "RENT"
+                      ? "Locação em outro site"
+                      : "Anunciado por terceiro"}
                   </span>
                   <span className="text-base font-semibold text-slate-900">
                     {anuncio.price === null
                       ? "Consulte"
                       : `R$ ${anuncio.price.toLocaleString("pt-BR")}`}
+                    {anuncio.purpose === "RENT" && (
+                      <small className="text-xs font-normal">/mês</small>
+                    )}
                   </span>
                 </div>
                 <span className="button-secondary button-compact">
