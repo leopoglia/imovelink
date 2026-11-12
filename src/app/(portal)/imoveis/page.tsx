@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Internet,
   JournalPage,
   MapPin,
   Plus,
@@ -16,6 +17,7 @@ import { hasPermission } from "@/lib/auth/rbac";
 import { PropertyAudit } from "@/components/property-audit";
 import { Select, PROPERTY_STATUS_OPTIONS } from "@/components/ui/select";
 import {
+  ExternalListing,
   Property,
   PropertyAuditLog,
   PropertyStatus,
@@ -26,9 +28,9 @@ export default function ImoveisPortfolioPage() {
   const { currentTenant, currentUser } = useTenantStore();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<"PORTFOLIO" | "AUDIT">(
-    "PORTFOLIO",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "PORTFOLIO" | "AUDIT" | "EXTERNAL"
+  >("PORTFOLIO");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [rbacFeedback, setRbacFeedback] = useState<string | null>(null);
 
@@ -51,11 +53,13 @@ export default function ImoveisPortfolioPage() {
   const { data, isPending, isError, refetch } = useQuery<{
     properties: Property[];
     auditLogs: PropertyAuditLog[];
+    externalListings?: ExternalListing[];
+    externalSources?: { id: string; name: string }[];
   }>({
     queryKey: ["properties", currentTenant.id],
     queryFn: async () => {
       const res = await apiFetch(
-        "/api/properties?includeAudit=true",
+        "/api/properties?includeAudit=true&includeExternal=true",
       );
       if (!res.ok) throw new Error("Não foi possível carregar os imóveis.");
       return res.json();
@@ -64,6 +68,10 @@ export default function ImoveisPortfolioPage() {
 
   const properties = data?.properties ?? [];
   const auditLogs = data?.auditLogs ?? [];
+  const externalListings = data?.externalListings ?? [];
+  const nomeDaFonte = new Map(
+    (data?.externalSources ?? []).map((fonte) => [fonte.id, fonte.name]),
+  );
 
   const createPropertyMutation = useMutation({
     mutationFn: async () => {
@@ -188,6 +196,15 @@ export default function ImoveisPortfolioPage() {
             >
               <JournalPage aria-hidden="true" className="w-3.5 h-3.5" />
               Auditoria ({auditLogs.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("EXTERNAL")}
+              aria-pressed={activeTab === "EXTERNAL"}
+              className={`segmented-option ${activeTab === "EXTERNAL" ? "is-active" : ""}`}
+            >
+              <Internet aria-hidden="true" className="w-3.5 h-3.5" />
+              Externos ({externalListings.length})
             </button>
           </div>
 
@@ -341,6 +358,80 @@ export default function ImoveisPortfolioPage() {
           isError={isError}
           onRetry={() => void refetch()}
         />
+      )}
+
+      {activeTab === "EXTERNAL" && (
+        <section aria-label="Anúncios de outros sites">
+          <p className="ai-search-note">
+            Anúncios indexados de outros sites. São somente leitura: o Imovelink
+            guarda os dados e o link, e o anúncio continua na origem.
+          </p>
+          {!externalListings.length ? (
+            <p className="ai-search-note">
+              Nenhum anúncio externo ainda. Cadastre uma fonte na aba Crawler.
+            </p>
+          ) : (
+            <div className="crawler-table-scroll">
+              <table className="crawler-table">
+                <caption className="sr-only">
+                  Anúncios indexados de outros sites
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Fonte</th>
+                    <th scope="col">Título</th>
+                    <th scope="col">Preço</th>
+                    <th scope="col">Local</th>
+                    <th scope="col">Quartos</th>
+                    <th scope="col">Área</th>
+                    <th scope="col">Visto em</th>
+                    <th scope="col">Link</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {externalListings.map((anuncio) => (
+                    <tr key={anuncio.id}>
+                      <td>{nomeDaFonte.get(anuncio.sourceId) ?? "Outro site"}</td>
+                      <td>{anuncio.title}</td>
+                      <td>
+                        {anuncio.price === null
+                          ? "Consulte"
+                          : anuncio.price.toLocaleString("pt-BR", {
+                              style: "currency",
+                              currency: "BRL",
+                              maximumFractionDigits: 0,
+                            })}
+                      </td>
+                      <td>
+                        {[anuncio.neighborhood, anuncio.city]
+                          .filter(Boolean)
+                          .join(", ") || "—"}
+                      </td>
+                      <td>{anuncio.bedrooms ?? "—"}</td>
+                      <td>
+                        {anuncio.areaTotal ? `${anuncio.areaTotal} m²` : "—"}
+                      </td>
+                      <td>
+                        {new Date(anuncio.lastSeenAt).toLocaleDateString(
+                          "pt-BR",
+                        )}
+                      </td>
+                      <td>
+                        <a
+                          href={anuncio.url}
+                          target="_blank"
+                          rel="noopener noreferrer nofollow"
+                        >
+                          abrir
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
 
       {showCreateModal && (

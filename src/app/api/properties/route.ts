@@ -6,6 +6,7 @@ import {
   requireSession,
   authErrorResponse,
 } from "@/server/services/auth.service";
+import { externalSourceRepository } from "@/server/repositories/external-source.repository";
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,16 +15,31 @@ export async function GET(req: NextRequest) {
     const tenantId = tenant.id;
     const includeAudit = searchParams.get("includeAudit") === "true";
     if (includeAudit) await requireSession(req, "properties:audit_view");
+    // Anúncios de outros sites são só leitura e visíveis a quem consulta o
+    // portfólio: o corretor precisa deles para atender o cliente.
+    const includeExternal = searchParams.get("includeExternal") === "true";
 
-    const properties = await propertyService.listProperties(tenantId);
-    const auditLogs = includeAudit
-      ? await propertyService.listAuditLogs(tenantId)
-      : undefined;
+    const [properties, auditLogs, externalListings, externalSources] =
+      await Promise.all([
+        propertyService.listProperties(tenantId),
+        includeAudit ? propertyService.listAuditLogs(tenantId) : undefined,
+        includeExternal
+          ? externalSourceRepository.listListings(tenantId)
+          : undefined,
+        includeExternal
+          ? externalSourceRepository.listByTenant(tenantId)
+          : undefined,
+      ]);
 
     return NextResponse.json(
       {
         properties,
         auditLogs,
+        externalListings,
+        externalSources: externalSources?.map((fonte) => ({
+          id: fonte.id,
+          name: fonte.name,
+        })),
         total: properties.length,
       },
       { headers: { "Cache-Control": "no-store" } },
