@@ -36,19 +36,17 @@ export default function ImoveisPortfolioPage() {
 
   const [title, setTitle] = useState("");
   const [type, setType] = useState<PropertyType>("HOUSE");
-  const [price, setPrice] = useState("890000");
+  const [price, setPrice] = useState("");
   const [neighborhood, setNeighborhood] = useState("Vila Nova");
-  const [street, setStreet] = useState("Rua 25 de Julho, 810");
-  const [bedrooms, setBedrooms] = useState("3");
-  const [suites, setSuites] = useState("2");
-  const [parkingSpots, setParkingSpots] = useState("2");
-  const [areaBuilt, setAreaBuilt] = useState("185");
-  const [amenitiesText, setAmenitiesText] = useState(
-    "quintal arborizado, piscina, espaco gourmet, churrasqueira",
-  );
-  const [description, setDescription] = useState(
-    "Excelente residência com quintal arborizado, iluminação natural e área gourmet integrada em localização privilegiada de Jaraguá do Sul.",
-  );
+  const [street, setStreet] = useState("");
+  const [bedrooms, setBedrooms] = useState("0");
+  const [suites, setSuites] = useState("0");
+  const [bathrooms, setBathrooms] = useState("0");
+  const [parkingSpots, setParkingSpots] = useState("0");
+  const [areaBuilt, setAreaBuilt] = useState("0");
+  const [areaTotal, setAreaTotal] = useState("0");
+  const [amenitiesText, setAmenitiesText] = useState("");
+  const [description, setDescription] = useState("");
 
   const { data, isPending, isError, refetch } = useQuery<{
     properties: Property[];
@@ -79,18 +77,16 @@ export default function ImoveisPortfolioPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title:
-            title ||
-            "Residência Jardim Europeu com Espaço Gourmet e Quintal Amplo",
+          title,
           description,
           type,
           purpose: "SALE",
           price: Number(price),
           bedrooms: Number(bedrooms),
           suites: Number(suites),
-          bathrooms: Number(suites) + 1,
+          bathrooms: Number(bathrooms),
           parkingSpots: Number(parkingSpots),
-          areaTotal: Number(areaBuilt) * 1.5,
+          areaTotal: Number(areaTotal),
           areaBuilt: Number(areaBuilt),
           addressStreet: street,
           addressNeighborhood: neighborhood,
@@ -98,7 +94,6 @@ export default function ImoveisPortfolioPage() {
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean),
-          featured: true,
         }),
       });
       if (!res.ok) {
@@ -113,6 +108,10 @@ export default function ImoveisPortfolioPage() {
       });
       setShowCreateModal(false);
       setTitle("");
+      setPrice("");
+      setStreet("");
+      setDescription("");
+      setAmenitiesText("");
     },
   });
 
@@ -542,20 +541,42 @@ export default function ImoveisPortfolioPage() {
                   />
                 </div>
                 <div>
+                  <label className="field-label">Banheiros</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={bathrooms}
+                    onChange={(e) => setBathrooms(e.target.value)}
+                    className="field-control"
+                  />
+                </div>
+                <div>
                   <label className="field-label">Vagas</label>
                   <input
                     type="number"
+                    min={0}
                     value={parkingSpots}
                     onChange={(e) => setParkingSpots(e.target.value)}
                     className="field-control"
                   />
                 </div>
                 <div>
-                  <label className="field-label">Área (m²)</label>
+                  <label className="field-label">Área construída (m²)</label>
                   <input
                     type="number"
+                    min={0}
                     value={areaBuilt}
                     onChange={(e) => setAreaBuilt(e.target.value)}
+                    className="field-control"
+                  />
+                </div>
+                <div>
+                  <label className="field-label">Área total (m²)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={areaTotal}
+                    onChange={(e) => setAreaTotal(e.target.value)}
                     className="field-control"
                   />
                 </div>
