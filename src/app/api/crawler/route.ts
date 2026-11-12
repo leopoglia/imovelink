@@ -58,6 +58,10 @@ const EXPLICACAO: Record<string, string> = {
   UNSUPPORTED_SCHEME: "Informe um endereço http ou https.",
   INVALID_URL: "O endereço informado não é uma URL válida.",
   NOT_FOUND: "A página não foi encontrada no site de origem.",
+  RATE_LIMITED_BY_SITE:
+    "O site está limitando nossas requisições (HTTP 429). Ele pede que aguardemos antes de tentar de novo.",
+  FORBIDDEN_BY_SITE:
+    "O site recusou o acesso ao nosso coletor (HTTP 403). Ele não permite leitura automatizada desta página.",
   NOT_HTML: "O endereço não devolveu uma página HTML.",
   TIMEOUT: "O site demorou demais para responder.",
   NETWORK_ERROR: "Não foi possível conectar ao site. Tente novamente.",
@@ -81,6 +85,15 @@ function errorResponse(error: unknown) {
   // Erros do buscador e da descoberta trazem um código; a mensagem é genérica.
   if (error && typeof error === "object" && "code" in error) {
     const codigo = String((error as { code: unknown }).code);
+    // O site pode dizer quanto tempo esperar; repassamos esse prazo.
+    const espera = /^RATE_LIMITED_BY_SITE_(.+)$/.exec(codigo);
+    if (espera)
+      return NextResponse.json(
+        {
+          error: `${EXPLICACAO.RATE_LIMITED_BY_SITE} Ele pede ${espera[1]} segundos.`,
+        },
+        { status: 400 },
+      );
     return NextResponse.json(
       {
         error:

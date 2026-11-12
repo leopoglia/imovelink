@@ -67,10 +67,25 @@ async function baixar(url: URL, signal: AbortSignal): Promise<string> {
     cache: "no-store",
     signal,
   });
-  if (!resposta.ok)
+  if (!resposta.ok) {
+    // 429 e 403 são o site pedindo para pararmos. Respeitamos e avisamos o
+    // gestor, em vez de disfarçar o agente para insistir.
+    if (resposta.status === 429) {
+      const espera = resposta.headers.get("retry-after");
+      throw new FetchError(
+        espera
+          ? "RATE_LIMITED_BY_SITE_" + espera.replace(/[^\w:,\s-]/g, "")
+          : "RATE_LIMITED_BY_SITE",
+      );
+    }
     throw new FetchError(
-      resposta.status === 404 ? "NOT_FOUND" : "UPSTREAM_ERROR",
+      resposta.status === 404
+        ? "NOT_FOUND"
+        : resposta.status === 403
+          ? "FORBIDDEN_BY_SITE"
+          : "UPSTREAM_ERROR",
     );
+  }
   const tipo = resposta.headers.get("content-type") ?? "";
   if (!tipo.includes("text/html") && !tipo.includes("text/plain"))
     throw new FetchError("NOT_HTML");

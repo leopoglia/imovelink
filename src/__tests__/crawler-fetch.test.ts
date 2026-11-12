@@ -165,6 +165,58 @@ describe("Busca da listagem", () => {
     );
   });
 
+  it("reconhece quando o site limita nossas requisições", async () => {
+    // Caso real: itaivan.com devolve 429 ao nosso agente e 200 ao navegador.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (entrada: URL | string) =>
+        String(entrada).endsWith("/robots.txt")
+          ? resposta("", "text/plain")
+          : new Response("", {
+              status: 429,
+              headers: { "content-type": "text/html", "retry-after": "120" },
+            }),
+      ),
+    );
+    await expect(buscarListagem("https://exemplo.com/x")).rejects.toThrowError(
+      expect.objectContaining({ code: "RATE_LIMITED_BY_SITE_120" }),
+    );
+  });
+
+  it("usa o código simples quando o site não diz quanto esperar", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (entrada: URL | string) =>
+        String(entrada).endsWith("/robots.txt")
+          ? resposta("", "text/plain")
+          : new Response("", {
+              status: 429,
+              headers: { "content-type": "text/html" },
+            }),
+      ),
+    );
+    await expect(buscarListagem("https://exemplo.com/x")).rejects.toThrowError(
+      expect.objectContaining({ code: "RATE_LIMITED_BY_SITE" }),
+    );
+  });
+
+  it("reconhece recusa explícita de acesso automatizado", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (entrada: URL | string) =>
+        String(entrada).endsWith("/robots.txt")
+          ? resposta("", "text/plain")
+          : new Response("", {
+              status: 403,
+              headers: { "content-type": "text/html" },
+            }),
+      ),
+    );
+    await expect(buscarListagem("https://exemplo.com/x")).rejects.toThrowError(
+      expect.objectContaining({ code: "FORBIDDEN_BY_SITE" }),
+    );
+  });
+
   it("transforma falha de rede em erro tratado", async () => {
     vi.stubGlobal(
       "fetch",
