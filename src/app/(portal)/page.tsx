@@ -12,7 +12,11 @@ import {
 } from "iconoir-react";
 import { useTenantStore } from "@/store/tenant-store";
 import { apiFetch } from "@/lib/api";
-import { Property, PropertyAuditLog } from "@/types/domain";
+import {
+  ExternalListing,
+  Property,
+  PropertyAuditLog,
+} from "@/types/domain";
 
 const DIAS_DA_JANELA = 30;
 
@@ -29,11 +33,15 @@ export default function DashboardHomePage() {
     data: propData,
     isPending: propertiesPending,
     isError: propertiesError,
-  } = useQuery<{ properties: Property[]; auditLogs: PropertyAuditLog[] }>({
+  } = useQuery<{
+    properties: Property[];
+    auditLogs: PropertyAuditLog[];
+    externalListings?: ExternalListing[];
+  }>({
     queryKey: ["properties", currentTenant.id],
     queryFn: async () => {
       const res = await apiFetch(
-        "/api/properties?includeAudit=true",
+        "/api/properties?includeAudit=true&includeExternal=true",
       );
       if (!res.ok) throw new Error("Não foi possível carregar os imóveis.");
       return res.json();
@@ -42,6 +50,7 @@ export default function DashboardHomePage() {
 
   const properties = propData?.properties ?? [];
   const auditLogs = propData?.auditLogs ?? [];
+  const externos = propData?.externalListings ?? [];
   const available = properties.filter((p) => p.status === "AVAILABLE");
   const reserved = properties.filter(
     (property) => property.status === "RESERVED",
