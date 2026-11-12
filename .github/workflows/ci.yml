@@ -10,10 +10,15 @@ jobs:
   quality-and-tests:
     name: Typecheck, TDD Suite (Vitest) & Next.js SSR Build
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # O Sonar usa o histórico para atribuir cada problema ao seu commit.
+          fetch-depth: 0
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -40,6 +45,11 @@ jobs:
           name: coverage-report
           path: coverage/
           retention-days: 14
+
+      - name: SonarCloud Static Analysis
+        # Só roda quando o token existe; sem ele o pipeline segue sem falhar.
+        if: env.SONAR_TOKEN != ''
+        uses: SonarSource/sonarqube-scan-action@v6
 
       - name: Build Production Next.js 15 App Router (SSR & API Routes)
         run: npm run build
