@@ -59,6 +59,51 @@ export function parseNumeroBR(texto: string): number | undefined {
   return Number.isFinite(numero) ? numero : undefined;
 }
 
+/**
+ * Estados e país escritos por extenso, além das siglas. Sem isso um endereço
+ * como "Rua X, Centro, Jaraguá do Sul, Santa Catarina, Brasil" devolveria
+ * "Santa Catarina" como bairro e "Brasil" como cidade.
+ */
+const NAO_SAO_CIDADE = new Set([
+  "brasil",
+  "brazil",
+  "acre",
+  "alagoas",
+  "amapa",
+  "amazonas",
+  "bahia",
+  "ceara",
+  "distrito federal",
+  "espirito santo",
+  "goias",
+  "maranhao",
+  "mato grosso",
+  "mato grosso do sul",
+  "minas gerais",
+  "para",
+  "paraiba",
+  "parana",
+  "pernambuco",
+  "piaui",
+  "rio de janeiro",
+  "rio grande do norte",
+  "rio grande do sul",
+  "rondonia",
+  "roraima",
+  "santa catarina",
+  "sao paulo",
+  "sergipe",
+  "tocantins",
+]);
+
+function semAcento(texto: string) {
+  return texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
 /** "R. Tal - Corticeira, Guaramirim - SC" → bairro e cidade. */
 export function parseEndereco(texto: string): {
   neighborhood?: string;
@@ -68,12 +113,15 @@ export function parseEndereco(texto: string): {
     .split(/[-,]/)
     .map((parte) => parte.trim())
     .filter(Boolean);
-  // O último trecho costuma ser a UF; cidade e bairro vêm logo antes.
-  const semUf = partes.filter((parte) => !/^[A-Z]{2}$/.test(parte));
-  if (semUf.length < 2) return {};
+  // Descarta a cauda administrativa: sigla de UF, estado por extenso e país.
+  const uteis = partes.filter(
+    (parte) =>
+      !/^[A-Z]{2}$/.test(parte) && !NAO_SAO_CIDADE.has(semAcento(parte)),
+  );
+  if (uteis.length < 2) return {};
   return {
-    neighborhood: semUf[semUf.length - 2],
-    city: semUf[semUf.length - 1],
+    neighborhood: uteis[uteis.length - 2],
+    city: uteis[uteis.length - 1],
   };
 }
 

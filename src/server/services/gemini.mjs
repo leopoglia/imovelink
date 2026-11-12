@@ -15,7 +15,7 @@ export class GeminiError extends Error {
 
 /**
  * Server-only transport. The API key is sent in a header, never in a URL or error.
- * @param {{systemInstruction: string, prompt: string, schema: Record<string, unknown>, signal?: AbortSignal}} input
+ * @param {{systemInstruction: string, prompt: string, schema: Record<string, unknown>, signal?: AbortSignal, timeoutMs?: number}} input
  * @returns {Promise<{text: string, model: string}>}
  */
 export async function generateGeminiJson(input) {
@@ -25,9 +25,12 @@ export async function generateGeminiJson(input) {
   const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_MODEL;
   if (!/^gemini-[a-zA-Z0-9.-]{1,100}$/.test(model))
     throw new GeminiError("INVALID_MODEL");
+  // A busca do corretor é interativa e não pode travar; a descoberta de um
+  // site novo é administrativa e roda uma vez, então pode esperar mais.
+  const prazo = input.timeoutMs ?? 15_000;
   const signal = input.signal
-    ? AbortSignal.any([input.signal, AbortSignal.timeout(15_000)])
-    : AbortSignal.timeout(15_000);
+    ? AbortSignal.any([input.signal, AbortSignal.timeout(prazo)])
+    : AbortSignal.timeout(prazo);
   signal.throwIfAborted();
   try {
     const response = await fetch(

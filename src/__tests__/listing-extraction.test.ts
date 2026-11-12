@@ -147,6 +147,30 @@ describe("Separação de bairro e cidade", () => {
     });
   });
 
+  it("ignora estado por extenso e país, como faz a Piermann", () => {
+    // Antes isso devolvia bairro "Santa Catarina" e cidade "Brasil".
+    expect(
+      parseEndereco("Rua das Flores, Centro, Jaraguá do Sul, Santa Catarina, Brasil"),
+    ).toEqual({ neighborhood: "Centro", city: "Jaraguá do Sul" });
+  });
+
+  it("ignora estado por extenso mesmo sem acento ou com caixa diferente", () => {
+    expect(
+      parseEndereco("Vila Nova, Jaragua do Sul, SANTA CATARINA, BRASIL"),
+    ).toEqual({ neighborhood: "Vila Nova", city: "Jaragua do Sul" });
+  });
+
+  it("não descarta cidade que não é estado", () => {
+    expect(parseEndereco("Centro, Corupá, SC")).toEqual({
+      neighborhood: "Centro",
+      city: "Corupá",
+    });
+  });
+
+  it("devolve vazio quando há só cauda administrativa", () => {
+    expect(parseEndereco("Santa Catarina, Brasil")).toEqual({});
+  });
+
   it("devolve vazio quando não há partes suficientes", () => {
     expect(parseEndereco("SC")).toEqual({});
     expect(parseEndereco("")).toEqual({});

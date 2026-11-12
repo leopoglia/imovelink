@@ -154,6 +154,8 @@ export class DiscoveryError extends Error {
 
 /** Falhas de capacidade do provedor são temporárias e valem nova tentativa. */
 const CODIGOS_TEMPORARIOS = new Set(["PROVIDER_UNAVAILABLE", "RATE_LIMITED"]);
+/** Páginas grandes levam mais de 15s para o modelo interpretar. */
+const PRAZO_DO_MODELO_MS = 45_000;
 const ESPERAS_MS = [1500, 4000];
 
 const dormir = (ms: number) =>
@@ -170,6 +172,7 @@ async function pedirMapaAoModelo(
         prompt,
         schema: extractionMapJsonSchema,
         signal,
+        timeoutMs: PRAZO_DO_MODELO_MS,
       });
       return text;
     } catch (erro) {

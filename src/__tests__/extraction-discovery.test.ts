@@ -213,6 +213,16 @@ describe("Descoberta do mapa de extração", () => {
     vi.useRealTimers();
   });
 
+  it("dá ao modelo um prazo maior que o da busca interativa", async () => {
+    responder(MAPA_DO_MODELO);
+    await descobrirMapaExtracao(HTML, BASE);
+    const chamada = vi.mocked(generateGeminiJson).mock.calls[0][0] as {
+      timeoutMs?: number;
+    };
+    // A busca do corretor usa 15s; a descoberta roda uma vez e pode esperar.
+    expect(chamada.timeoutMs).toBeGreaterThan(15_000);
+  });
+
   it("não culpa o site quando quem passou do tempo foi o modelo", async () => {
     vi.mocked(generateGeminiJson).mockRejectedValue(
       Object.assign(new Error("timeout"), { code: "TIMEOUT" }),
