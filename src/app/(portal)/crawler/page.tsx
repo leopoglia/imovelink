@@ -117,6 +117,7 @@ export default function CrawlerPage() {
       action: string;
       sourceId: string;
       active?: boolean;
+      maxPages?: number;
     }) => enviar(body),
     onMutate: () => setErro(""),
     onSuccess: invalidar,
@@ -355,9 +356,7 @@ export default function CrawlerPage() {
                   {fonte.lastCrawledAt
                     ? `coletado em ${new Date(fonte.lastCrawledAt).toLocaleString("pt-BR")}`
                     : "nunca coletado"}
-                  {fonte.paginationTemplate
-                    ? ` · até ${fonte.maxPages} páginas`
-                    : " · página única"}
+                  {!fonte.paginationTemplate && " · página única"}
                   {!fonte.active && " · pausada"}
                 </span>
                 {rotuloDaAcao(fonte.id) && (
@@ -378,6 +377,33 @@ export default function CrawlerPage() {
                 )}
               </div>
               <div className="crawler-source-actions">
+                {fonte.paginationTemplate && (
+                  <label className="crawler-max-pages">
+                    Páginas
+                    <input
+                      type="number"
+                      min={1}
+                      max={200}
+                      defaultValue={fonte.maxPages}
+                      disabled={acao.isPending}
+                      aria-label={"Máximo de páginas de " + fonte.name}
+                      onBlur={(evento) => {
+                        const valor = Number(evento.target.value);
+                        if (
+                          Number.isInteger(valor) &&
+                          valor >= 1 &&
+                          valor <= 200 &&
+                          valor !== fonte.maxPages
+                        )
+                          acao.mutate({
+                            action: "SET_MAX_PAGES",
+                            sourceId: fonte.id,
+                            maxPages: valor,
+                          });
+                      }}
+                    />
+                  </label>
+                )}
                 <button
                   type="button"
                   className="button-secondary"

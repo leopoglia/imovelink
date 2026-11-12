@@ -24,6 +24,7 @@ vi.mock("@/server/repositories/external-source.repository", () => ({
     create: vi.fn(async (f) => f),
     findById: vi.fn(),
     setActive: vi.fn(),
+    setMaxPages: vi.fn(),
     remove: vi.fn(),
     registrarColeta: vi.fn(),
     upsertListings: vi.fn(async () => 0),
@@ -67,6 +68,11 @@ describe("Permissão para administrar fontes externas", () => {
     },
     { action: "COLLECT", sourceId: SEED_TENANTS[0].id },
     { action: "SET_ACTIVE", sourceId: SEED_TENANTS[0].id, active: false },
+    {
+      action: "SET_MAX_PAGES",
+      sourceId: SEED_TENANTS[0].id,
+      maxPages: 50,
+    },
     { action: "REMOVE", sourceId: SEED_TENANTS[0].id },
   ];
 
@@ -188,6 +194,36 @@ describe("Rota do crawler", () => {
     await expect(resposta.json()).resolves.toMatchObject({
       error: expect.stringContaining("mapa válido"),
     });
+  });
+
+  it("altera o teto de páginas de uma fonte", async () => {
+    const resposta = await POST(
+      pedido({
+        action: "SET_MAX_PAGES",
+        sourceId: SEED_TENANTS[0].id,
+        maxPages: 50,
+      }),
+    );
+    expect(resposta.status).toBe(200);
+    expect(externalSourceRepository.setMaxPages).toHaveBeenCalledWith(
+      SEED_TENANTS[0].id,
+      SEED_TENANTS[0].id,
+      50,
+    );
+  });
+
+  it("recusa teto fora do intervalo permitido", async () => {
+    for (const maxPages of [0, 201, 1.5]) {
+      const r = await POST(
+        pedido({
+          action: "SET_MAX_PAGES",
+          sourceId: SEED_TENANTS[0].id,
+          maxPages,
+        }),
+      );
+      expect(r.status).toBe(400);
+    }
+    expect(externalSourceRepository.setMaxPages).not.toHaveBeenCalled();
   });
 
   it("não devolve cache nas consultas", async () => {

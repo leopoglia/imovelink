@@ -35,6 +35,13 @@ const schema = z.discriminatedUnion("action", [
     })
     .strict(),
   z
+    .object({
+      action: z.literal("SET_MAX_PAGES"),
+      sourceId: z.string().uuid(),
+      maxPages: z.number().int().min(1).max(200),
+    })
+    .strict(),
+  z
     .object({ action: z.literal("REMOVE"), sourceId: z.string().uuid() })
     .strict(),
 ]);
@@ -142,6 +149,16 @@ export async function POST(request: NextRequest) {
         tenant.id,
         body.sourceId,
         body.active,
+      );
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.action === "SET_MAX_PAGES") {
+      await crawlerService.definirMaxPaginas(
+        user.role,
+        tenant.id,
+        body.sourceId,
+        body.maxPages,
       );
       return NextResponse.json({ ok: true });
     }

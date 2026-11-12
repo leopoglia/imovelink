@@ -243,6 +243,16 @@ export class CrawlerService {
     await externalSourceRepository.setActive(tenantId, sourceId, active);
   }
 
+  async definirMaxPaginas(
+    role: UserRole,
+    tenantId: string,
+    sourceId: string,
+    maxPages: number,
+  ) {
+    exigirPermissao(role);
+    await externalSourceRepository.setMaxPages(tenantId, sourceId, maxPages);
+  }
+
   async remover(role: UserRole, tenantId: string, sourceId: string) {
     exigirPermissao(role);
     await externalSourceRepository.remove(tenantId, sourceId);

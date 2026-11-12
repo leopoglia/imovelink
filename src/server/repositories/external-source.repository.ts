@@ -112,6 +112,23 @@ export class ExternalSourceRepository {
     if (fonte) fonte.active = active;
   }
 
+  async setMaxPages(
+    tenantId: string,
+    sourceId: string,
+    maxPages: number,
+  ): Promise<void> {
+    if (isPostgresConfigured()) {
+      await getPostgres()`UPDATE imovelink.external_sources
+        SET max_pages = ${maxPages}, updated_at = NOW()
+        WHERE tenant_id = ${tenantId} AND id = ${sourceId}`;
+      return;
+    }
+    const fonte = getDb().externalSources.find(
+      (item) => item.tenantId === tenantId && item.id === sourceId,
+    );
+    if (fonte) fonte.maxPages = maxPages;
+  }
+
   async remove(tenantId: string, sourceId: string): Promise<void> {
     if (isPostgresConfigured()) {
       // Os anúncios saem junto pela chave estrangeira com ON DELETE CASCADE.
