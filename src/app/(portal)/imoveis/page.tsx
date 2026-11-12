@@ -28,9 +28,9 @@ export default function ImoveisPortfolioPage() {
   const { currentTenant, currentUser } = useTenantStore();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<
-    "PORTFOLIO" | "AUDIT" | "EXTERNAL"
-  >("PORTFOLIO");
+  const [activeTab, setActiveTab] = useState<"PORTFOLIO" | "AUDIT">(
+    "PORTFOLIO",
+  );
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [rbacFeedback, setRbacFeedback] = useState<string | null>(null);
 
@@ -186,7 +186,7 @@ export default function ImoveisPortfolioPage() {
               aria-pressed={activeTab === "PORTFOLIO"}
               className={`segmented-option ${activeTab === "PORTFOLIO" ? "is-active" : ""}`}
             >
-              Estoque ({properties.length})
+              Imóveis ({properties.length + externalListings.length})
             </button>
             <button
               type="button"
@@ -196,15 +196,6 @@ export default function ImoveisPortfolioPage() {
             >
               <JournalPage aria-hidden="true" className="w-3.5 h-3.5" />
               Auditoria ({auditLogs.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("EXTERNAL")}
-              aria-pressed={activeTab === "EXTERNAL"}
-              className={`segmented-option ${activeTab === "EXTERNAL" ? "is-active" : ""}`}
-            >
-              <Internet aria-hidden="true" className="w-3.5 h-3.5" />
-              Externos ({externalListings.length})
             </button>
           </div>
 
@@ -230,7 +221,15 @@ export default function ImoveisPortfolioPage() {
       )}
 
       {activeTab === "PORTFOLIO" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <>
+          {externalListings.length > 0 && (
+            <p className="text-xs text-slate-500">
+              <strong>{properties.length}</strong> da sua carteira ·{" "}
+              <strong>{externalListings.length}</strong> de outros sites
+              (somente leitura, com link para a origem).
+            </p>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {properties.map((prop) => (
             <div
               key={prop.id}
@@ -319,21 +318,6 @@ export default function ImoveisPortfolioPage() {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() =>
-                      updatePropertyMutation.mutate({
-                        id: prop.id,
-                        updates: {
-                          price: Math.round(prop.price * 0.97),
-                        },
-                      })
-                    }
-                    className="button-secondary button-compact"
-                  >
-                    -3% Preço
-                  </button>
-
-                  <button
-                    type="button"
                     onClick={() => deletePropertyMutation.mutate(prop.id)}
                     title={
                       canDelete
@@ -348,7 +332,91 @@ export default function ImoveisPortfolioPage() {
               </div>
             </div>
           ))}
-        </div>
+          {externalListings.map((anuncio) => (
+            <a
+              key={anuncio.id}
+              href={anuncio.url}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="rounded-2xl bg-white border border-dashed border-slate-300 overflow-hidden flex flex-col justify-between hover:border-slate-400 transition"
+            >
+              <div>
+                <div className="relative h-44 bg-slate-100 flex items-center justify-center">
+                  {anuncio.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={anuncio.imageUrl}
+                      alt={anuncio.title}
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Internet
+                      aria-hidden="true"
+                      className="w-7 h-7 text-slate-400"
+                    />
+                  )}
+                  <div className="absolute top-3 left-3">
+                    <span className="px-2.5 py-1 rounded-lg bg-white/95 text-[10px] font-semibold text-slate-700 flex items-center gap-1.5">
+                      {fontePorId.get(anuncio.sourceId)?.logoUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={fontePorId.get(anuncio.sourceId)!.logoUrl!}
+                          alt=""
+                          className="crawler-logo-preview"
+                        />
+                      )}
+                      {fontePorId.get(anuncio.sourceId)?.name ??
+                        "Outro site"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-2">
+                  <div>
+                    <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                      <MapPin
+                        aria-hidden="true"
+                        className="w-3.5 h-3.5 text-brand-600"
+                      />
+                      {[anuncio.neighborhood, anuncio.city]
+                        .filter(Boolean)
+                        .join(" • ") || "Local não informado"}
+                    </p>
+                    <h3 className="text-sm font-semibold text-slate-900 mt-1 line-clamp-2">
+                      {anuncio.title}
+                    </h3>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
+                    <span>{anuncio.bedrooms ?? "—"} dorms</span>
+                    <span>{anuncio.parkingSpots ?? "—"} vagas</span>
+                    <span>
+                      {anuncio.areaTotal ? `${anuncio.areaTotal} m²` : "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-4 py-3.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-2">
+                <div>
+                  <span className="text-[10px] text-slate-400 block">
+                    Anunciado por terceiro
+                  </span>
+                  <span className="text-base font-semibold text-slate-900">
+                    {anuncio.price === null
+                      ? "Consulte"
+                      : `R$ ${anuncio.price.toLocaleString("pt-BR")}`}
+                  </span>
+                </div>
+                <span className="button-secondary button-compact">
+                  Ver na origem
+                </span>
+              </div>
+            </a>
+          ))}
+          </div>
+        </>
       )}
 
       {activeTab === "AUDIT" && (
@@ -360,106 +428,6 @@ export default function ImoveisPortfolioPage() {
         />
       )}
 
-      {activeTab === "EXTERNAL" && (
-        <section aria-label="Anúncios de outros sites" className="space-y-4">
-          <p className="text-xs text-slate-500">
-            Anúncios indexados de outros sites. São somente leitura: o Imovelink
-            guarda os dados e o endereço da foto, que continua sendo servida
-            pelo site de origem.
-          </p>
-          {!externalListings.length ? (
-            <p className="text-xs text-slate-500">
-              Nenhum anúncio externo ainda. Cadastre uma fonte na aba Crawler.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {externalListings.map((anuncio) => (
-                <a
-                  key={anuncio.id}
-                  href={anuncio.url}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className="rounded-2xl bg-white border border-dashed border-slate-300 overflow-hidden flex flex-col justify-between hover:border-slate-400 transition"
-                >
-                  <div>
-                    <div className="relative h-44 bg-slate-100 flex items-center justify-center">
-                      {anuncio.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={anuncio.imageUrl}
-                          alt={anuncio.title}
-                          loading="lazy"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Internet
-                          aria-hidden="true"
-                          className="w-7 h-7 text-slate-400"
-                        />
-                      )}
-                      <div className="absolute top-3 left-3">
-                        <span className="px-2.5 py-1 rounded-lg bg-white/95 text-[10px] font-semibold text-slate-700 flex items-center gap-1.5">
-                          {fontePorId.get(anuncio.sourceId)?.logoUrl && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={fontePorId.get(anuncio.sourceId)!.logoUrl!}
-                              alt=""
-                              className="crawler-logo-preview"
-                            />
-                          )}
-                          {fontePorId.get(anuncio.sourceId)?.name ??
-                            "Outro site"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-4 space-y-2">
-                      <div>
-                        <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                          <MapPin
-                            aria-hidden="true"
-                            className="w-3.5 h-3.5 text-brand-600"
-                          />
-                          {[anuncio.neighborhood, anuncio.city]
-                            .filter(Boolean)
-                            .join(" • ") || "Local não informado"}
-                        </p>
-                        <h3 className="text-sm font-semibold text-slate-900 mt-1 line-clamp-2">
-                          {anuncio.title}
-                        </h3>
-                      </div>
-
-                      <div className="flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-100">
-                        <span>{anuncio.bedrooms ?? "—"} dorms</span>
-                        <span>{anuncio.parkingSpots ?? "—"} vagas</span>
-                        <span>
-                          {anuncio.areaTotal ? `${anuncio.areaTotal} m²` : "—"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="px-4 py-3.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block">
-                        Anunciado por terceiro
-                      </span>
-                      <span className="text-base font-semibold text-slate-900">
-                        {anuncio.price === null
-                          ? "Consulte"
-                          : `R$ ${anuncio.price.toLocaleString("pt-BR")}`}
-                      </span>
-                    </div>
-                    <span className="button-secondary button-compact">
-                      Ver na origem
-                    </span>
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
 
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-xs flex items-center justify-center p-4">
