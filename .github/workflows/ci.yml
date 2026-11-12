@@ -49,7 +49,8 @@ jobs:
       - name: SonarCloud Static Analysis
         # Só roda quando o token existe; sem ele o pipeline segue sem falhar.
         if: env.SONAR_TOKEN != ''
-        uses: SonarSource/sonarqube-scan-action@v6
+        # SHA fixo em vez de tag: tag pode ser movida para outro commit.
+        uses: SonarSource/sonarqube-scan-action@fd88b7d7ccbaefd23d8f36f73b59db7a3d246602 # v6
 
       - name: Build Production Next.js 15 App Router (SSR & API Routes)
         run: npm run build

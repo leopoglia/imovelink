@@ -103,7 +103,7 @@ export default function ImoveisPortfolioPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["properties", currentTenant.id],
       });
       setShowCreateModal(false);
@@ -137,7 +137,7 @@ export default function ImoveisPortfolioPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["properties", currentTenant.id],
       });
     },
@@ -156,7 +156,7 @@ export default function ImoveisPortfolioPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({
+      void queryClient.invalidateQueries({
         queryKey: ["properties", currentTenant.id],
       });
     },

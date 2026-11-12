@@ -80,7 +80,11 @@ export default function CrawlerPage() {
     },
   });
 
-  const invalidar = () => queryClient.invalidateQueries({ queryKey: chave });
+  // invalidateQueries devolve promise; nada depende do fim dela, mas uma
+  // rejeição solta não pode ficar sem tratamento.
+  const invalidar = () => {
+    void queryClient.invalidateQueries({ queryKey: chave });
+  };
   const falhar = (e: unknown) =>
     setErro(e instanceof Error ? e.message : "Falha inesperada.");
 
