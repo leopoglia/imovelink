@@ -37,6 +37,16 @@ Para configurar PostgreSQL, preencha `DATABASE_URL` e execute `npm run db:check`
 
 Para definir a senha de uma conta existente, execute `npm run auth:set-password` no terminal. A senha não é exibida nem recebida como argumento.
 
+## Monitoramento
+
+`npm run dev` sobe a aplicação e o Prometheus juntos; `Ctrl+C` encerra os dois. Para rodar só um deles, use `npm run dev:app` ou `npm run monitor`.
+
+O executável do Prometheus não faz parte do repositório: baixe em [prometheus.io/download](https://prometheus.io/download) (windows-amd64) e descompacte. O script procura nos locais comuns; se estiver em outro, informe o caminho em `PROMETHEUS_BIN`.
+
+A aplicação expõe as métricas em `/api/metrics`, em três camadas: runtime do Node (memória, CPU, atraso do event loop), infraestrutura (disponibilidade do PostgreSQL) e negócio (anúncios externos indexados por fonte, coletas por resultado, requisições e tempo de resposta por rota).
+
+O painel fica em `http://localhost:9090` — `/targets` mostra a coleta e `/alerts` as cinco regras definidas em `monitoring/alertas.yml`. As regras são avaliadas, mas não notificam ninguém: isso exigiria o Alertmanager.
+
 ## Verificar
 
 ```bash
@@ -59,10 +69,13 @@ src/server/repositories/  Acesso ao armazenamento
 src/server/seeds/         Dados de demonstração
 src/types/                Tipos do domínio
 src/__tests__/            Testes automatizados
+monitoring/               Configuração do Prometheus e regras de alerta
 ```
 
 ## Pendências para produção e portfólio
 
-As páginas internas e APIs privadas validam sessões no servidor e derivam identidade, imobiliária e permissões do usuário autenticado. Cada ambiente precisa de sua conexão, certificado e configuração de origem pública. Ainda faltam comprovação de cobertura, deploy automatizado, análise de segurança e monitoramento. Recuperação de senha e convites não foram implementados; contas existentes são administradas pelo comando local.
+As páginas internas e APIs privadas validam sessões no servidor e derivam identidade, imobiliária e permissões do usuário autenticado. Cada ambiente precisa de sua conexão, certificado e configuração de origem pública.
+
+Cobertura, análise estática e monitoramento estão cobertos: o pipeline reprova abaixo das metas de cobertura, o SonarCloud analisa cada push e o Prometheus coleta métricas da aplicação. Ainda faltam deploy automatizado e notificação dos alertas (Alertmanager): hoje eles disparam na interface do Prometheus, sem avisar ninguém. Recuperação de senha e convites não foram implementados; contas existentes são administradas pelo comando local.
 
 A integração de IA deve ser validada com uma credencial real. Esta versão não gera embeddings nem executa consultas pgvector/PostGIS.
