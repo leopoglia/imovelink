@@ -41,3 +41,6 @@ next-env.d.ts
 
 # coverage
 /coverage
+
+# base de series temporais do Prometheus (gerada ao rodar)
+/monitoring/data/
