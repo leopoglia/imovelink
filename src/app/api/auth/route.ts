@@ -6,6 +6,7 @@ import {
   authErrorResponse,
   requireSession,
 } from "@/server/services/auth.service";
+import { observarRota } from "@/server/observability/metrics";
 
 const schema = z.discriminatedUnion("action", [
   z
@@ -34,7 +35,7 @@ const schema = z.discriminatedUnion("action", [
     .strict(),
   z.object({ action: z.literal("LOGOUT") }).strict(),
 ]);
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   try {
     return NextResponse.json(await requireSession(req), {
       headers: { "Cache-Control": "no-store" },
@@ -49,7 +50,7 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     assertSameOrigin(req);
     const parsed = schema.safeParse(await req.json());
@@ -84,3 +85,10 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// Cada chamada é contada e cronometrada para o Prometheus.
+export const GET = (req: NextRequest) =>
+  observarRota("/api/auth", "GET", () => handleGET(req));
+
+export const POST = (req: NextRequest) =>
+  observarRota("/api/auth", "POST", () => handlePOST(req));

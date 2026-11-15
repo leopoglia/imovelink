@@ -7,8 +7,9 @@ import {
   authErrorResponse,
 } from "@/server/services/auth.service";
 import { externalSourceRepository } from "@/server/repositories/external-source.repository";
+import { observarRota } from "@/server/observability/metrics";
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   try {
     const { tenant } = await requireSession(req, "properties:view");
     const { searchParams } = new URL(req.url);
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const { tenant, user } = await requireSession(req, "properties:create");
     const body = await req.json();
@@ -84,3 +85,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+// Cada chamada é contada e cronometrada para o Prometheus.
+export const GET = (req: NextRequest) =>
+  observarRota("/api/properties", "GET", () => handleGET(req));
+
+export const POST = (req: NextRequest) =>
+  observarRota("/api/properties", "POST", () => handlePOST(req));

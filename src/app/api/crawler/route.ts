@@ -6,6 +6,7 @@ import {
 } from "@/server/services/auth.service";
 import { CrawlerError, crawlerService } from "@/server/services/crawler.service";
 import { extractionMapSchema } from "@/server/services/listing-extraction";
+import { observarRota } from "@/server/observability/metrics";
 
 const schema = z.discriminatedUnion("action", [
   z
@@ -111,7 +112,7 @@ function errorResponse(error: unknown) {
   );
 }
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     const { user, tenant } = await requireSession(request);
     const sourceId = request.nextUrl.searchParams.get("sourceId") ?? undefined;
@@ -128,7 +129,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const { user, tenant } = await requireSession(request);
     const body = schema.parse(await request.json());
@@ -188,3 +189,10 @@ export async function POST(request: NextRequest) {
     return errorResponse(error);
   }
 }
+
+// Cada chamada é contada e cronometrada para o Prometheus.
+export const GET = (request: NextRequest) =>
+  observarRota("/api/crawler", "GET", () => handleGET(request));
+
+export const POST = (request: NextRequest) =>
+  observarRota("/api/crawler", "POST", () => handlePOST(request));

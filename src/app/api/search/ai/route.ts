@@ -5,13 +5,14 @@ import {
   requireSession,
   authErrorResponse,
 } from "@/server/services/auth.service";
+import { observarRota } from "@/server/observability/metrics";
 
 const searchSchema = z.object({
   query: z.string().trim().min(3).max(1500),
   onlyAvailable: z.boolean().default(true),
 });
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const { tenant } = await requireSession(req, "properties:view");
     const parsed = searchSchema.safeParse(await req.json());
@@ -41,3 +42,7 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// Cada chamada é contada e cronometrada para o Prometheus.
+export const POST = (req: NextRequest) =>
+  observarRota("/api/search/ai", "POST", () => handlePOST(req));

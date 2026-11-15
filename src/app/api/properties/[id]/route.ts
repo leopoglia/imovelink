@@ -6,11 +6,10 @@ import {
   requireSession,
   authErrorResponse,
 } from "@/server/services/auth.service";
+import { observarRota } from "@/server/observability/metrics";
 
-export async function PATCH(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+async function handlePATCH(req: NextRequest,
+  context: { params: Promise<{ id: string }> }) {
   try {
     const { tenant, user } = await requireSession(req, "properties:edit");
     const { id } = await context.params;
@@ -47,10 +46,8 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
+async function handleDELETE(req: NextRequest,
+  context: { params: Promise<{ id: string }> }) {
   try {
     const { tenant, user } = await requireSession(req, "properties:delete");
     const { id } = await context.params;
@@ -89,3 +86,10 @@ export async function DELETE(
     );
   }
 }
+
+// Cada chamada é contada e cronometrada para o Prometheus.
+export const PATCH = (req: NextRequest, context: { params: Promise<{ id: string }> }) =>
+  observarRota("/api/properties/[id]", "PATCH", () => handlePATCH(req, context));
+
+export const DELETE = (req: NextRequest, context: { params: Promise<{ id: string }> }) =>
+  observarRota("/api/properties/[id]", "DELETE", () => handleDELETE(req, context));

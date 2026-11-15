@@ -3,8 +3,9 @@ import { leadQualificationService } from "@/server/services/lead-qualification.s
 import { LeadChannel, LeadStage } from "@/types/domain";
 import { tenantRepository } from "@/server/repositories/tenant.repository";
 import { z } from "zod";
+import { observarRota } from "@/server/observability/metrics";
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     const body = await req.json();
     const destination = z.string().uuid().safeParse(body.tenantId);
@@ -46,3 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+// Cada chamada é contada e cronometrada para o Prometheus.
+export const POST = (req: NextRequest) =>
+  observarRota("/api/leads", "POST", () => handlePOST(req));

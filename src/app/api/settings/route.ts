@@ -8,6 +8,7 @@ import {
   SettingsError,
   settingsService,
 } from "@/server/services/settings.service";
+import { observarRota } from "@/server/observability/metrics";
 
 function errorResponse(error: unknown) {
   const denied = authErrorResponse(error);
@@ -33,7 +34,7 @@ function errorResponse(error: unknown) {
   );
 }
 
-export async function GET(request: NextRequest) {
+async function handleGET(request: NextRequest) {
   try {
     const { user, tenant } = await requireSession(request);
     return NextResponse.json(
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function PATCH(request: NextRequest) {
+async function handlePATCH(request: NextRequest) {
   try {
     const { user, tenant } = await requireSession(request);
     const body = await request.json();
@@ -63,3 +64,10 @@ export async function PATCH(request: NextRequest) {
     return errorResponse(error);
   }
 }
+
+// Cada chamada é contada e cronometrada para o Prometheus.
+export const GET = (request: NextRequest) =>
+  observarRota("/api/settings", "GET", () => handleGET(request));
+
+export const PATCH = (request: NextRequest) =>
+  observarRota("/api/settings", "PATCH", () => handlePATCH(request));
