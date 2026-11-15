@@ -1,0 +1,55 @@
+# Alertas sobre as métricas do Imovelink.
+# Um monitoramento que só desenha gráfico não avisa ninguém: as regras abaixo
+# definem o que é considerado problema e a partir de quanto tempo.
+
+groups:
+  - name: imovelink
+    rules:
+      - alert: AplicacaoForaDoAr
+        expr: up{job="imovelink"} == 0
+        for: 1m
+        labels:
+          severidade: critica
+        annotations:
+          resumo: "A aplicação não responde à coleta de métricas há 1 minuto."
+
+      - alert: BancoIndisponivel
+        expr: imovelink_banco_disponivel == 0
+        for: 2m
+        labels:
+          severidade: critica
+        annotations:
+          resumo: "O PostgreSQL não respondeu nas últimas duas verificações."
+
+      - alert: MuitosErrosNasRotas
+        # Mais de 5% das respostas em erro do servidor nos últimos 5 minutos.
+        expr: |
+          sum(rate(imovelink_http_requisicoes_total{status=~"5.."}[5m]))
+            / sum(rate(imovelink_http_requisicoes_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severidade: alta
+        annotations:
+          resumo: "Mais de 5% das requisições estão falhando com erro de servidor."
+
+      - alert: RespostaLenta
+        # 95% das requisições deveriam responder em menos de 3 segundos.
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(imovelink_http_duracao_segundos_bucket[5m])) by (le)
+          ) > 3
+        for: 10m
+        labels:
+          severidade: media
+        annotations:
+          resumo: "O tempo de resposta no percentil 95 passou de 3 segundos."
+
+      - alert: EventLoopTravado
+        # Atraso alto no event loop significa trabalho síncrono bloqueando o Node.
+        expr: imovelink_nodejs_eventloop_lag_p99_seconds > 1
+        for: 5m
+        labels:
+          severidade: media
+        annotations:
+          resumo: "O event loop do Node está com atraso acima de 1 segundo."

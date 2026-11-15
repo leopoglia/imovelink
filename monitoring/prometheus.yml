@@ -1,0 +1,32 @@
+# Configuração de raspagem do Prometheus para o Imovelink.
+#
+# Uso (Windows, sem instalar nada):
+#   1. Baixe o binário em https://prometheus.io/download (windows-amd64)
+#   2. Descompacte e rode na pasta deste arquivo:
+#        prometheus.exe --config.file=prometheus.yml
+#   3. Abra http://localhost:9090
+#
+# A aplicação precisa estar no ar; o endereço abaixo acompanha a porta do
+# `npm run dev`.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    ambiente: desenvolvimento
+
+rule_files:
+  - alertas.yml
+
+scrape_configs:
+  - job_name: imovelink
+    metrics_path: /api/metrics
+    static_configs:
+      - targets: ["localhost:3000"]
+        labels:
+          servico: portal
+
+  # O próprio Prometheus, para saber se a coleta está saudável.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

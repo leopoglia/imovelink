@@ -166,6 +166,16 @@ export class ExternalSourceRepository {
       .sort((a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt));
   }
 
+  /** Todos os anúncios indexados, para métricas agregadas por fonte. */
+  async listAllListings(): Promise<ExternalListing[]> {
+    if (isPostgresConfigured()) {
+      const rows =
+        await getPostgres()`SELECT * FROM imovelink.external_listings`;
+      return rows.map((row) => domainRecord<ExternalListing>(row));
+    }
+    return getDb().externalListings;
+  }
+
   /**
    * Grava os anúncios de uma coleta. A chave é (tenant_id, url): a URL
    * identifica o imóvel, então duas fontes que encontram o mesmo anúncio
