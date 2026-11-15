@@ -55,7 +55,7 @@ if ($emUso) {
 Write-Host "Prometheus: $exe"
 Write-Host "Configuracao: $pastaConfig\prometheus.yml"
 Write-Host "Painel: http://localhost:9090  (alvos em /targets, alertas em /alerts)"
-Write-Host "A aplicacao precisa estar no ar com 'npm run dev' na porta 3000."
+Write-Host "A aplicacao e raspada em localhost:3000; 'npm run dev' sobe as duas juntas."
 Write-Host ""
 
 # Entra na pasta da configuração: tanto prometheus.yml quanto o alertas.yml que

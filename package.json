@@ -5,7 +5,8 @@
   "description": "Gestao de imoveis, busca em linguagem natural e vitrine publica.",
   "author": "Leonardo Heitor Poglia",
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently -n app,prom -c cyan,magenta --kill-others-on-fail=false \"npm:dev:app\" \"npm:monitor\"",
+    "dev:app": "next dev",
     "monitor": "powershell -NoProfile -ExecutionPolicy Bypass -File monitoring/iniciar.ps1",
     "build": "next build",
     "start": "next start",
@@ -42,6 +43,7 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitest/coverage-v8": "^3.2.7",
+    "concurrently": "^10.0.7",
     "eslint": "^9.39.5",
     "eslint-config-next": "^15.5.29",
     "jsdom": "^26.0.0",
