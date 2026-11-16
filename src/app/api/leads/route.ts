@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { leadQualificationService } from "@/server/services/lead-qualification.service";
 import { tenantRepository } from "@/server/repositories/tenant.repository";
 import { z } from "zod";
+import { leadService } from "@/server/services/lead.service";
+import {
+  authErrorResponse,
+  requireSession,
+} from "@/server/services/auth.service";
 import { observarRota } from "@/server/observability/metrics";
 
 /** Texto obrigatório: ausente, de outro tipo ou vazio devolvem a mesma mensagem. */
@@ -100,6 +105,28 @@ async function handlePOST(req: NextRequest) {
   }
 }
 
+/** Quadro de contatos: exige sessão; a imobiliária vem da sessão, nunca do cliente. */
+async function handleGET(req: NextRequest) {
+  try {
+    const { tenant, user } = await requireSession(req, "leads:view");
+    const leads = await leadService.listLeads(tenant.id, user.role);
+    return NextResponse.json(
+      { leads },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    const denied = authErrorResponse(error);
+    if (denied) return denied;
+    return NextResponse.json(
+      { error: "Não foi possível carregar os contatos." },
+      { status: 500 },
+    );
+  }
+}
+
 // Cada chamada é contada e cronometrada para o Prometheus.
+export const GET = (req: NextRequest) =>
+  observarRota("/api/leads", "GET", () => handleGET(req));
+
 export const POST = (req: NextRequest) =>
   observarRota("/api/leads", "POST", () => handlePOST(req));
