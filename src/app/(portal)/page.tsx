@@ -50,7 +50,6 @@ export default function DashboardHomePage() {
 
   const properties = propData?.properties ?? [];
   const auditLogs = propData?.auditLogs ?? [];
-  const externos = propData?.externalListings ?? [];
   const available = properties.filter((p) => p.status === "AVAILABLE");
   const reserved = properties.filter(
     (property) => property.status === "RESERVED",
@@ -119,12 +118,6 @@ export default function DashboardHomePage() {
           </dt>
           <dd className="stat-value">
             {propertiesPending || propertiesError ? "—" : novosNaJanela}
-          </dd>
-        </div>
-        <div className="stat-card">
-          <dt className="stat-label">De outros sites</dt>
-          <dd className="stat-value">
-            {propertiesPending || propertiesError ? "—" : externos.length}
           </dd>
         </div>
       </dl>
