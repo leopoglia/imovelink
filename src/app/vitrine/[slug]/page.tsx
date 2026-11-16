@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Phone, ShieldCheck } from "iconoir-react";
 import { tenantRepository } from "@/server/repositories/tenant.repository";
 import { propertyService } from "@/server/services/property.service";
 import { VitrineLeadCapture } from "@/components/vitrine/vitrine-lead-capture";
+import { jsonLd, publicOrigin } from "@/lib/structured-data";
 
 export async function generateMetadata({
   params,
@@ -41,12 +42,13 @@ export default async function VitrineB2BWhiteLabelPage({
     (p) => p.status === "AVAILABLE" || p.status === "RESERVED",
   );
 
+  const vitrineUrl = `${publicOrigin()}/vitrine/${tenant.slug}`;
   const schemaOrgJsonLd = {
     "@context": "https://schema.org",
     "@graph": [
       {
         "@type": "RealEstateAgent",
-        "@id": `https://imovelink.com.br/vitrine/${tenant.slug}#agency`,
+        "@id": `${vitrineUrl}#agency`,
         name: tenant.name,
         description: tenant.branding.tagline,
         telephone: tenant.branding.phone,
@@ -61,10 +63,10 @@ export default async function VitrineB2BWhiteLabelPage({
       },
       ...properties.map((prop) => ({
         "@type": "RealEstateListing",
-        "@id": `https://imovelink.com.br/vitrine/${tenant.slug}#${prop.code}`,
+        "@id": `${vitrineUrl}#${prop.code}`,
         name: prop.title,
         description: prop.description,
-        url: `https://imovelink.com.br/vitrine/${tenant.slug}#${prop.code}`,
+        url: `${vitrineUrl}#${prop.code}`,
         datePosted: prop.createdAt,
         offers: {
           "@type": "Offer",
@@ -88,7 +90,7 @@ export default async function VitrineB2BWhiteLabelPage({
     <div className="vitrine-page min-h-screen text-slate-900">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrgJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(schemaOrgJsonLd) }}
       />
 
       {/* Barra Superior Discreta */}
