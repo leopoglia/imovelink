@@ -10,6 +10,9 @@ import { normalizarTexto } from "@/lib/geo";
 import { leadRepository } from "@/server/repositories/lead.repository";
 import { aiSearchService } from "./ai-search.service";
 
+/** O visitante espera a resposta do formulário: a IA tem menos tempo aqui do que na busca. */
+const PRAZO_DA_IA_MS = 8_000;
+
 export interface CreateAndQualifyLeadInput {
   tenantId: string;
   assignedBrokerId: string;
@@ -31,7 +34,9 @@ export interface LeadWithMatchedProperties {
 
 export class LeadQualificationService {
   /**
-   * Qualifica o lead pontuando urgência, orçamento e compatibilidade com o estoque
+   * Qualifica o lead: a IA (ou as regras locais) extrai os critérios do texto,
+   * e a pontuação soma orçamento, região, compatibilidade com o estoque e urgência.
+   * Só o texto do pedido é enviado ao provedor de IA; nome e telefone não saem do sistema.
    */
   async qualifyLeadDesire(
     tenantId: string,
@@ -46,16 +51,27 @@ export class LeadQualificationService {
     profile: AIExtractedLeadProfile;
     topMatches: HybridSearchResultItem[];
   }> {
-    const filtros = aiSearchService.extractStructuredQuery(naturalSearchDesire);
-    const resultadoBusca = await aiSearchService.searchHybrid(
-      tenantId,
-      naturalSearchDesire,
-      false,
-    );
+    // A mesma interpretação da busca: IA quando configurada e disponível,
+    // regras locais caso contrário. O contato nunca deixa de ser registrado
+    // por causa do provedor de IA.
+    const resultadoBusca = await aiSearchService
+      .searchWithAI(
+        tenantId,
+        naturalSearchDesire,
+        false,
+        AbortSignal.timeout(PRAZO_DA_IA_MS),
+      )
+      .catch(() =>
+        aiSearchService.searchHybrid(tenantId, naturalSearchDesire, false),
+      );
+    const filtros = resultadoBusca.query;
+    const interpretadoPorIA = resultadoBusca.interpretation?.mode === "ai";
     const topMatches = resultadoBusca.results.slice(0, 3);
 
     const texto = normalizarTexto(naturalSearchDesire);
-    const fatores: string[] = [];
+    const fatores: string[] = interpretadoPorIA
+      ? ["Pedido interpretado por IA"]
+      : [];
     let score = 50;
 
     const tetoOrcamento = explicitBudgetMax || filtros.maxPrice || 750000;
