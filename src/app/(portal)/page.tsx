@@ -125,7 +125,6 @@ export default function DashboardHomePage() {
           <dt className="stat-label">De outros sites</dt>
           <dd className="stat-value">
             {propertiesPending || propertiesError ? "—" : externos.length}
-            <small>indexados pelo crawler</small>
           </dd>
         </div>
       </dl>
