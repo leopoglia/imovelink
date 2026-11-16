@@ -1,50 +1,102 @@
 import { NextRequest, NextResponse } from "next/server";
 import { leadQualificationService } from "@/server/services/lead-qualification.service";
-import { LeadChannel, LeadStage } from "@/types/domain";
 import { tenantRepository } from "@/server/repositories/tenant.repository";
 import { z } from "zod";
 import { observarRota } from "@/server/observability/metrics";
 
+/** Texto obrigatório: ausente, de outro tipo ou vazio devolvem a mesma mensagem. */
+const texto = (mensagem: string) =>
+  z.string({ required_error: mensagem, invalid_type_error: mensagem }).trim();
+
+const vazioComoAusente = (valor: unknown) =>
+  valor === undefined || valor === null || valor === "" ? undefined : valor;
+
+const orcamento = z.preprocess(
+  (valor) => {
+    const informado = vazioComoAusente(valor);
+    return informado === undefined ? undefined : Number(informado);
+  },
+  z
+    .number({ invalid_type_error: "Orçamento inválido." })
+    .finite("Orçamento inválido.")
+    .min(0, "Orçamento inválido.")
+    .max(99999999999, "Orçamento inválido.")
+    .optional(),
+);
+
+const DESCRICAO = "Descreva o imóvel em 3 a 1.500 caracteres.";
+
+// A rota é pública: o formulário da vitrine exige os campos, mas quem chama a
+// API direto não passa por ele. A etapa e o corretor não fazem parte do
+// schema — são decididos no servidor, não por quem envia o contato.
+const contatoSchema = z.object({
+  tenantId: texto("Imobiliária inválida.").uuid("Imobiliária inválida."),
+  name: texto("Informe seu nome.")
+    .min(2, "Informe seu nome.")
+    .max(120, "Informe seu nome."),
+  phone: texto("Informe um telefone válido.")
+    .max(30, "Informe um telefone válido.")
+    .refine(
+      (valor) => valor.replace(/\D/g, "").length >= 8,
+      "Informe um telefone válido.",
+    ),
+  email: z.preprocess(
+    vazioComoAusente,
+    texto("Informe um e-mail válido.")
+      .email("Informe um e-mail válido.")
+      .max(254, "Informe um e-mail válido.")
+      .optional(),
+  ),
+  naturalSearchDesire: texto(DESCRICAO).min(3, DESCRICAO).max(1500, DESCRICAO),
+  originChannel: z
+    .enum(["WHATSAPP", "PORTAL_B2B", "INSTAGRAM", "INDICACAO", "TELEFONE"], {
+      errorMap: () => ({ message: "Canal de origem inválido." }),
+    })
+    .default("WHATSAPP"),
+  budgetMin: orcamento,
+  budgetMax: orcamento,
+});
+
 async function handlePOST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const destination = z.string().uuid().safeParse(body.tenantId);
-    if (!destination.success)
+    const parsed = contatoSchema.safeParse(await req.json());
+    if (!parsed.success)
       return NextResponse.json(
-        { error: "Imobiliária inválida." },
+        { error: parsed.error.issues[0]?.message ?? "Dados inválidos." },
         { status: 400 },
       );
-    const tenantId = destination.data;
-    const broker = await tenantRepository.findFirstBroker(tenantId);
+    const contato = parsed.data;
+
+    const broker = await tenantRepository.findFirstBroker(contato.tenantId);
     if (!broker)
       return NextResponse.json(
         { error: "Imobiliária sem responsável cadastrado." },
         { status: 400 },
       );
-    const assignedBrokerId = broker.id;
-    const assignedBrokerName = broker.name;
 
     const created = await leadQualificationService.createAndQualifyLead({
-      tenantId,
-      assignedBrokerId,
-      assignedBrokerName,
-      name: body.name,
-      email: body.email || "contato@cliente.com.br",
-      phone: body.phone || "(47) 99900-0000",
-      originChannel: (body.originChannel as LeadChannel) || "WHATSAPP",
-      naturalSearchDesire: body.naturalSearchDesire,
-      budgetMin: body.budgetMin ? Number(body.budgetMin) : undefined,
-      budgetMax: body.budgetMax ? Number(body.budgetMax) : undefined,
-      stage: (body.stage as LeadStage) || "NEW",
+      tenantId: contato.tenantId,
+      assignedBrokerId: broker.id,
+      assignedBrokerName: broker.name,
+      name: contato.name,
+      email: contato.email ?? "contato@cliente.com.br",
+      phone: contato.phone,
+      originChannel: contato.originChannel,
+      naturalSearchDesire: contato.naturalSearchDesire,
+      budgetMin: contato.budgetMin,
+      budgetMax: contato.budgetMax,
+      stage: "NEW",
     });
 
     return NextResponse.json(created, { status: 201 });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Erro ao qualificar e criar lead.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    if (error instanceof SyntaxError)
+      return NextResponse.json({ error: "Dados inválidos." }, { status: 400 });
+    // A mensagem interna (banco, serviço) não é repassada a um visitante anônimo.
+    return NextResponse.json(
+      { error: "Não foi possível registrar seu contato. Tente novamente." },
+      { status: 500 },
+    );
   }
 }
 

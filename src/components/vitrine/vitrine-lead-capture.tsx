@@ -12,6 +12,7 @@ export function VitrineLeadCapture({ tenantId }: { tenantId: string }) {
     "Procuro casa com quintal arborizado, 3 quartos e espaço gourmet no Centro ou Vila Nova até 950 mil",
   );
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [submittedResult, setSubmittedResult] = useState<{
     aiScore: number;
     matches: HybridSearchResultItem[];
@@ -20,24 +21,32 @@ export function VitrineLeadCapture({ tenantId }: { tenantId: string }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           tenantId,
-          name: name || "Visitante Portal B2B",
-          phone: phone || "(47) 99922-3344",
-          email: email || "visitante@portalb2b.com.br",
+          name,
+          phone,
+          email,
           originChannel: "PORTAL_B2B",
           naturalSearchDesire: desire,
         }),
       });
       const data = await res.json();
+      // Uma recusa do servidor não pode ser mostrada como contato registrado.
+      if (!res.ok) {
+        setError(data.error ?? "Não foi possível enviar seu contato.");
+        return;
+      }
       setSubmittedResult({
-        aiScore: data.lead?.aiScore ?? 90,
+        aiScore: data.lead?.aiScore ?? 0,
         matches: data.matchedProperties ?? [],
       });
+    } catch {
+      setError("Não foi possível enviar seu contato. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -89,6 +98,12 @@ export function VitrineLeadCapture({ tenantId }: { tenantId: string }) {
             className="field-control"
             placeholder="Ex: Quero uma casa com quintal arborizado, espaço gourmet e 3 suítes até 950 mil..."
           />
+
+          {error && (
+            <p role="alert" className="text-xs text-red-600">
+              {error}
+            </p>
+          )}
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-[11px] text-slate-400">
