@@ -235,7 +235,10 @@ describe("Formulário do login", () => {
         "Este acesso expirou.",
       ),
     );
-    expect(document.activeElement).toBe(screen.getByLabelText("Senha"));
+    // O foco só vai para a senha depois que o carregamento termina, um render após o alerta.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByLabelText("Senha")),
+    );
     expect(screen.getByLabelText("E-mail de acesso")).toHaveProperty(
       "value",
       "",
