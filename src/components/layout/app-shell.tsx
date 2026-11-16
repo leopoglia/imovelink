@@ -8,6 +8,7 @@ import {
   ArrowUpRight,
   Building,
   City,
+  Group,
   ShopWindow,
   LayoutLeft,
   Menu,
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
   { href: "/", label: "Visão geral", icon: LayoutLeft },
   { href: "/imoveis", label: "Imóveis", icon: City },
   { href: "/busca-ia", label: "Busca inteligente", icon: AreaSearch },
+  { href: "/contatos", label: "Contatos", icon: Group },
   {
     href: "/crawler",
     label: "Crawler",
