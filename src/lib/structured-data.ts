@@ -2,10 +2,9 @@ const ENDERECO_PADRAO = "https://imovelink.site";
 
 /** Endereço público do site, sem barra final. Vem de APP_ORIGIN em produção. */
 export function publicOrigin(): string {
-  return (process.env.APP_ORIGIN?.trim() || ENDERECO_PADRAO).replace(
-    /\/+$/,
-    "",
-  );
+  let origem = process.env.APP_ORIGIN?.trim() || ENDERECO_PADRAO;
+  while (origem.endsWith("/")) origem = origem.slice(0, -1);
+  return origem;
 }
 
 /**
@@ -14,5 +13,5 @@ export function publicOrigin(): string {
  * "</script>" não encerre a tag e injete HTML na página pública.
  */
 export function jsonLd(data: unknown): string {
-  return JSON.stringify(data).replace(/</g, "\\u003c");
+  return JSON.stringify(data).replaceAll("<", "\\u003c");
 }
