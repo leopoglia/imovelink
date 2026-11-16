@@ -54,3 +54,59 @@ jobs:
 
       - name: Build Production Next.js 15 App Router (SSR & API Routes)
         run: npm run build
+
+  deploy:
+    name: Deploy to Azure App Service
+    needs: quality-and-tests
+    # Publica somente o que entrou na main e passou em todos os portões acima.
+    # Sem a variável AZURE_WEBAPP_NAME o job é pulado, e o pipeline segue verde.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AZURE_WEBAPP_NAME != ''
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build standalone server
+        run: npm run build
+
+      - name: Assemble deployment package
+        # O servidor standalone não inclui os arquivos estáticos; eles são copiados ao lado dele.
+        run: |
+          cp -r public .next/standalone/public
+          cp -r .next/static .next/standalone/.next/static
+          test -f .next/standalone/server.js
+          test -f .next/standalone/database/certificates/supabase-prod-ca-2021.crt
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: .next/standalone
+
+      - name: Check that the published app answers
+        run: |
+          for attempt in $(seq 1 20); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' "https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net/login" || true)
+            echo "Attempt $attempt: HTTP $status"
+            if [ "$status" = "200" ]; then exit 0; fi
+            sleep 15
+          done
+          echo "The app did not answer 200 on /login after the deploy."
+          exit 1
