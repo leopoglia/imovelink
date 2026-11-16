@@ -60,11 +60,12 @@ jobs:
     needs: quality-and-tests
     # Publica somente o que entrou na main e passou em todos os portões acima.
     # Sem a variável AZURE_WEBAPP_NAME o job é pulado, e o pipeline segue verde.
+    # AZURE_WEBAPP_URL é o endereço público, sem barra final (o Azure gera um sufixo no domínio).
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AZURE_WEBAPP_NAME != ''
     runs-on: ubuntu-latest
     environment:
       name: production
-      url: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
+      url: ${{ vars.AZURE_WEBAPP_URL }}
     concurrency:
       group: deploy-production
       cancel-in-progress: false
@@ -103,7 +104,7 @@ jobs:
       - name: Check that the published app answers
         run: |
           for attempt in $(seq 1 20); do
-            status=$(curl -s -o /dev/null -w '%{http_code}' "https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net/login" || true)
+            status=$(curl -s -o /dev/null -w '%{http_code}' "${{ vars.AZURE_WEBAPP_URL }}/login" || true)
             echo "Attempt $attempt: HTTP $status"
             if [ "$status" = "200" ]; then exit 0; fi
             sleep 15
