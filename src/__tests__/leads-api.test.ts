@@ -35,9 +35,21 @@ const request = (body: unknown) =>
     body: JSON.stringify(body),
   });
 
+const contato = {
+  tenantId: TENANT_ID,
+  name: "Patrícia Weiss",
+  phone: "(47) 98888-1111",
+  naturalSearchDesire: "casa com quintal até 800 mil",
+};
+
+const entradaDoServico = () =>
+  vi.mocked(leadQualificationService.createAndQualifyLead).mock.calls[0][0];
+
 describe("Captação de contato pela vitrine", () => {
   it("recusa uma imobiliária que não é um identificador válido", async () => {
-    const response = await POST(request({ tenantId: "nao-e-uuid" }));
+    const response = await POST(
+      request({ ...contato, tenantId: "nao-e-uuid" }),
+    );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
       error: "Imobiliária inválida.",
@@ -49,9 +61,7 @@ describe("Captação de contato pela vitrine", () => {
 
   it("recusa quando a imobiliária não tem responsável cadastrado", async () => {
     vi.mocked(tenantRepository.findFirstBroker).mockResolvedValue(undefined);
-    const response = await POST(
-      request({ tenantId: TENANT_ID, name: "Patrícia" }),
-    );
+    const response = await POST(request(contato));
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
       error: "Imobiliária sem responsável cadastrado.",
@@ -61,45 +71,81 @@ describe("Captação de contato pela vitrine", () => {
     ).not.toHaveBeenCalled();
   });
 
+  // A rota é pública: o formulário exige os campos, mas quem chama a API
+  // direto não passa pelo formulário. A validação que vale é a do servidor.
+  it.each([
+    ["nome ausente", { name: undefined }, "Informe seu nome."],
+    ["nome só com espaços", { name: "   " }, "Informe seu nome."],
+    ["nome que não é texto", { name: 42 }, "Informe seu nome."],
+    ["telefone ausente", { phone: undefined }, "Informe um telefone válido."],
+    ["telefone sem dígitos", { phone: "abcdefgh" }, "Informe um telefone válido."],
+    ["e-mail malformado", { email: "nao-e-email" }, "Informe um e-mail válido."],
+    [
+      "descrição ausente",
+      { naturalSearchDesire: undefined },
+      "Descreva o imóvel em 3 a 1.500 caracteres.",
+    ],
+    [
+      "descrição longa demais",
+      { naturalSearchDesire: "a".repeat(1501) },
+      "Descreva o imóvel em 3 a 1.500 caracteres.",
+    ],
+    ["canal desconhecido", { originChannel: "SITE" }, "Canal de origem inválido."],
+    ["orçamento negativo", { budgetMax: -1 }, "Orçamento inválido."],
+    ["orçamento que não é número", { budgetMax: "muito" }, "Orçamento inválido."],
+  ])("recusa %s sem gravar o contato", async (_caso, campos, mensagem) => {
+    const response = await POST(request({ ...contato, ...campos }));
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: mensagem });
+    expect(tenantRepository.findFirstBroker).not.toHaveBeenCalled();
+    expect(
+      leadQualificationService.createAndQualifyLead,
+    ).not.toHaveBeenCalled();
+  });
+
   it("cria o contato e atribui o responsável escolhido no servidor", async () => {
     const response = await POST(
       request({
-        tenantId: TENANT_ID,
-        name: "Patrícia Weiss",
+        ...contato,
+        name: "  Patrícia Weiss  ",
         email: "patricia@example.com",
-        phone: "(47) 98888-1111",
-        originChannel: "SITE",
-        naturalSearchDesire: "casa com quintal até 800 mil",
+        originChannel: "PORTAL_B2B",
         budgetMin: "400000",
         budgetMax: "800000",
-        stage: "CONTACTED",
       }),
     );
     expect(response.status).toBe(201);
-    const entrada = vi.mocked(leadQualificationService.createAndQualifyLead)
-      .mock.calls[0][0];
-    expect(entrada).toMatchObject({
+    expect(entradaDoServico()).toMatchObject({
       tenantId: TENANT_ID,
       assignedBrokerId: corretor.id,
       assignedBrokerName: corretor.name,
+      name: "Patrícia Weiss",
       email: "patricia@example.com",
-      originChannel: "SITE",
-      stage: "CONTACTED",
+      phone: "(47) 98888-1111",
+      originChannel: "PORTAL_B2B",
+      naturalSearchDesire: "casa com quintal até 800 mil",
       budgetMin: 400000,
       budgetMax: 800000,
     });
   });
 
-  it("aplica os valores padrão quando o formulário envia só o essencial", async () => {
+  it("não deixa o visitante escolher a etapa nem o corretor do contato", async () => {
     const response = await POST(
-      request({ tenantId: TENANT_ID, name: "Gabriel" }),
+      request({ ...contato, stage: "WON", assignedBrokerId: "outro" }),
     );
     expect(response.status).toBe(201);
-    const entrada = vi.mocked(leadQualificationService.createAndQualifyLead)
-      .mock.calls[0][0];
+    expect(entradaDoServico()).toMatchObject({
+      stage: "NEW",
+      assignedBrokerId: corretor.id,
+    });
+  });
+
+  it("aplica os valores padrão quando o formulário envia só o essencial", async () => {
+    const response = await POST(request({ ...contato, email: "" }));
+    expect(response.status).toBe(201);
+    const entrada = entradaDoServico();
     expect(entrada).toMatchObject({
       email: "contato@cliente.com.br",
-      phone: "(47) 99900-0000",
       originChannel: "WHATSAPP",
       stage: "NEW",
     });
@@ -107,25 +153,14 @@ describe("Captação de contato pela vitrine", () => {
     expect(entrada.budgetMax).toBeUndefined();
   });
 
-  it("devolve a mensagem de erro quando a qualificação falha", async () => {
+  it("não repassa ao visitante a mensagem interna de uma falha", async () => {
     vi.mocked(leadQualificationService.createAndQualifyLead).mockRejectedValue(
-      new Error("Nome do contato é obrigatório."),
+      new Error('relation "imovelink.leads" does not exist'),
     );
-    const response = await POST(request({ tenantId: TENANT_ID, name: " " }));
-    expect(response.status).toBe(400);
+    const response = await POST(request(contato));
+    expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({
-      error: "Nome do contato é obrigatório.",
-    });
-  });
-
-  it("não vaza detalhes quando a falha não é um Error", async () => {
-    vi.mocked(leadQualificationService.createAndQualifyLead).mockRejectedValue(
-      "falha inesperada",
-    );
-    const response = await POST(request({ tenantId: TENANT_ID, name: "Ana" }));
-    expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
-      error: "Erro ao qualificar e criar lead.",
+      error: "Não foi possível registrar seu contato. Tente novamente.",
     });
   });
 
@@ -137,5 +172,8 @@ describe("Captação de contato pela vitrine", () => {
       }),
     );
     expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Dados inválidos.",
+    });
   });
 });
