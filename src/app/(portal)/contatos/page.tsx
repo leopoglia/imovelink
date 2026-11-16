@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
-import { AreaSearch, Phone, RefreshDouble } from "iconoir-react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { AreaSearch, EditPencil, Phone, RefreshDouble } from "iconoir-react";
 import { apiFetch } from "@/lib/api";
+import { hasPermission } from "@/lib/auth/rbac";
 import { LEAD_STAGES, LEAD_STAGE_LABELS } from "@/lib/lead-stages";
 import { formatPropertyPrice } from "@/lib/property-search";
 import { useTenantStore } from "@/store/tenant-store";
@@ -19,6 +20,9 @@ const TEMPERATURE_LABELS: Record<LeadTemperature, string> = {
   COLD: "Frio",
 };
 
+/** Negociação encerrada: não faz sentido sugerir imóveis. */
+const ETAPAS_ENCERRADAS: readonly LeadStage[] = ["WON", "LOST"];
+
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
@@ -31,14 +35,37 @@ type Sugestoes =
   | { estado: "erro"; mensagem: string }
   | { estado: "pronto"; imoveis: HybridSearchResponse["results"] };
 
+/** Os campos que o diálogo de edição permite alterar. */
+type Formulario = Pick<
+  Lead,
+  "name" | "phone" | "email" | "naturalSearchDesire" | "stage"
+>;
+const CAMPOS: readonly (keyof Formulario)[] = [
+  "name",
+  "phone",
+  "email",
+  "naturalSearchDesire",
+  "stage",
+];
+
+const mensagemDe = (causa: unknown, padrao: string) =>
+  causa instanceof Error ? causa.message : padrao;
+
 export default function ContatosPage() {
-  const { currentTenant } = useTenantStore();
+  const { currentTenant, currentUser } = useTenantStore();
   const [leads, setLeads] = useState<Lead[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [moveError, setMoveError] = useState<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<LeadStage | null>(null);
   const [sugestoes, setSugestoes] = useState<Record<string, Sugestoes>>({});
+  const [editando, setEditando] = useState<Lead | null>(null);
+  const [formulario, setFormulario] = useState<Formulario | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [erroDoFormulario, setErroDoFormulario] = useState<string | null>(null);
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const dialogo = useRef<HTMLDialogElement>(null);
+  const podeExcluir = hasPermission(currentUser.role, "leads:delete");
 
   const carregar = useCallback(async () => {
     setLoadError(null);
@@ -50,11 +77,7 @@ export default function ContatosPage() {
       setLeads(data.leads);
     } catch (cause) {
       setLeads(null);
-      setLoadError(
-        cause instanceof Error
-          ? cause.message
-          : "Não foi possível carregar os contatos.",
-      );
+      setLoadError(mensagemDe(cause, "Não foi possível carregar os contatos."));
     }
   }, []);
 
@@ -62,8 +85,24 @@ export default function ContatosPage() {
     setLeads(null);
     setSugestoes({});
     setMoveError(null);
+    setEditando(null);
     void carregar();
   }, [currentTenant.id, carregar]);
+
+  // showModal dá foco preso e fechamento por Escape sem código extra.
+  useEffect(() => {
+    const caixa = dialogo.current;
+    if (!caixa) return;
+    if (editando && !caixa.open) caixa.showModal();
+    if (!editando && caixa.open) caixa.close();
+  }, [editando]);
+
+  const substituir = (atualizado: Lead) =>
+    setLeads(
+      (atual) =>
+        atual?.map((item) => (item.id === atualizado.id ? atualizado : item)) ??
+        null,
+    );
 
   /**
    * Move o cartão na tela antes da resposta do servidor. Se o servidor recusar,
@@ -71,17 +110,7 @@ export default function ContatosPage() {
    */
   async function mover(lead: Lead, stage: LeadStage) {
     if (lead.stage === stage || moving) return;
-    const anterior = lead.stage;
-    const aplicar = (etapa: LeadStage, atualizado?: Lead) =>
-      setLeads(
-        (atual) =>
-          atual?.map((item) =>
-            item.id === lead.id
-              ? { ...item, ...atualizado, stage: etapa }
-              : item,
-          ) ?? null,
-      );
-    aplicar(stage);
+    substituir({ ...lead, stage });
     setMoving(lead.id);
     setMoveError(null);
     try {
@@ -93,14 +122,10 @@ export default function ContatosPage() {
       const data = await response.json();
       if (!response.ok)
         throw new Error(data.error || "Não foi possível mover o contato.");
-      aplicar(stage, data.lead);
+      substituir(data.lead);
     } catch (cause) {
-      aplicar(anterior);
-      setMoveError(
-        cause instanceof Error
-          ? cause.message
-          : "Não foi possível mover o contato.",
-      );
+      substituir(lead);
+      setMoveError(mensagemDe(cause, "Não foi possível mover o contato."));
     } finally {
       setMoving(null);
     }
@@ -133,12 +158,93 @@ export default function ContatosPage() {
         ...atual,
         [lead.id]: {
           estado: "erro",
-          mensagem:
-            cause instanceof Error
-              ? cause.message
-              : "Não foi possível buscar os imóveis.",
+          mensagem: mensagemDe(cause, "Não foi possível buscar os imóveis."),
         },
       }));
+    }
+  }
+
+  function abrirEdicao(lead: Lead) {
+    setFormulario({
+      name: lead.name,
+      phone: lead.phone,
+      email: lead.email,
+      naturalSearchDesire: lead.naturalSearchDesire,
+      stage: lead.stage,
+    });
+    setErroDoFormulario(null);
+    setConfirmandoExclusao(false);
+    setEditando(lead);
+  }
+
+  const alterar = <Campo extends keyof Formulario>(
+    campo: Campo,
+    valor: Formulario[Campo],
+  ) => setFormulario((atual) => (atual ? { ...atual, [campo]: valor } : atual));
+
+  /** Envia só os campos que mudaram; sem mudança, apenas fecha. */
+  async function salvar(evento: React.FormEvent) {
+    evento.preventDefault();
+    if (!editando || !formulario || salvando) return;
+    const mudancas = Object.fromEntries(
+      CAMPOS.filter(
+        (campo) => formulario[campo].trim() !== editando[campo],
+      ).map((campo) => [campo, formulario[campo].trim()]),
+    );
+    if (Object.keys(mudancas).length === 0) {
+      setEditando(null);
+      return;
+    }
+    setSalvando(true);
+    setErroDoFormulario(null);
+    try {
+      const response = await apiFetch(`/api/leads/${editando.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(mudancas),
+      });
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(data.error || "Não foi possível alterar o contato.");
+      substituir(data.lead);
+      // O pedido mudou: as sugestões antigas não valem mais.
+      if ("naturalSearchDesire" in mudancas)
+        setSugestoes((atual) => {
+          const { [editando.id]: _descartada, ...resto } = atual;
+          return resto;
+        });
+      setEditando(null);
+    } catch (cause) {
+      setErroDoFormulario(
+        mensagemDe(cause, "Não foi possível alterar o contato."),
+      );
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function excluir() {
+    if (!editando || salvando) return;
+    setSalvando(true);
+    setErroDoFormulario(null);
+    try {
+      const response = await apiFetch(`/api/leads/${editando.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+      if (!response.ok)
+        throw new Error(data.error || "Não foi possível excluir o contato.");
+      setLeads(
+        (atual) => atual?.filter((item) => item.id !== editando.id) ?? null,
+      );
+      setEditando(null);
+    } catch (cause) {
+      setErroDoFormulario(
+        mensagemDe(cause, "Não foi possível excluir o contato."),
+      );
+    } finally {
+      setSalvando(false);
     }
   }
 
@@ -149,7 +255,7 @@ export default function ContatosPage() {
           <h1>Contatos</h1>
           <p>
             Quem entrou em contato pela vitrine, organizado por etapa da
-            negociação.
+            negociação. Arraste um cartão para mudar a etapa.
           </p>
         </div>
         {leads && (
@@ -229,6 +335,7 @@ export default function ContatosPage() {
                   <ul className="lead-cards">
                     {daEtapa.map((lead) => {
                       const sugestao = sugestoes[lead.id];
+                      const encerrado = ETAPAS_ENCERRADAS.includes(lead.stage);
                       return (
                         <li key={lead.id}>
                           <article
@@ -263,49 +370,45 @@ export default function ContatosPage() {
                             <p className="lead-meta">
                               Recebido em {formatDate(lead.createdAt)}
                             </p>
-                            <label className="lead-move">
-                              <span>Etapa</span>
-                              <select
-                                value={lead.stage}
-                                disabled={moving === lead.id}
-                                aria-label={`Etapa de ${lead.name}`}
-                                onChange={(event) =>
-                                  void mover(
-                                    lead,
-                                    event.target.value as LeadStage,
-                                  )
-                                }
-                              >
-                                {LEAD_STAGES.map((option) => (
-                                  <option key={option} value={option}>
-                                    {LEAD_STAGE_LABELS[option]}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            {sugestao?.estado !== "pronto" && (
+                            <div className="lead-actions">
                               <button
                                 type="button"
                                 className="button-secondary button-compact"
-                                disabled={sugestao?.estado === "carregando"}
-                                onClick={() => void sugerirImoveis(lead)}
+                                aria-label={`Editar ${lead.name}`}
+                                onClick={() => abrirEdicao(lead)}
                               >
-                                <AreaSearch
+                                <EditPencil
                                   width={16}
                                   height={16}
                                   aria-hidden="true"
                                 />
-                                {sugestao?.estado === "carregando"
-                                  ? "Buscando…"
-                                  : "Sugerir imóveis"}
+                                Editar
                               </button>
-                            )}
-                            {sugestao?.estado === "erro" && (
+                              {!encerrado && sugestao?.estado !== "pronto" && (
+                                <button
+                                  type="button"
+                                  className="button-secondary button-compact"
+                                  disabled={sugestao?.estado === "carregando"}
+                                  onClick={() => void sugerirImoveis(lead)}
+                                >
+                                  <AreaSearch
+                                    width={16}
+                                    height={16}
+                                    aria-hidden="true"
+                                  />
+                                  {sugestao?.estado === "carregando"
+                                    ? "Buscando…"
+                                    : "Sugerir imóveis"}
+                                </button>
+                              )}
+                            </div>
+                            {!encerrado && sugestao?.estado === "erro" && (
                               <p className="lead-suggestion-error" role="alert">
                                 {sugestao.mensagem}
                               </p>
                             )}
-                            {sugestao?.estado === "pronto" &&
+                            {!encerrado &&
+                              sugestao?.estado === "pronto" &&
                               (sugestao.imoveis.length === 0 ? (
                                 <p className="lead-column-empty">
                                   Nenhum imóvel disponível atende a esse pedido.
@@ -338,6 +441,133 @@ export default function ContatosPage() {
           })}
         </div>
       )}
+
+      <dialog
+        ref={dialogo}
+        className="lead-dialog"
+        aria-labelledby="dialogo-contato"
+        onClose={() => setEditando(null)}
+        // Clicar fora da caixa fecha, como se espera de um modal.
+        onClick={(evento) => {
+          if (evento.target === dialogo.current) dialogo.current?.close();
+        }}
+      >
+        {editando && formulario && (
+          <form className="lead-form" onSubmit={(evento) => void salvar(evento)}>
+            <h2 id="dialogo-contato">Editar contato</h2>
+            <label>
+              <span className="field-label">Nome</span>
+              <input
+                className="field-control"
+                value={formulario.name}
+                onChange={(evento) => alterar("name", evento.target.value)}
+                required
+                minLength={2}
+                maxLength={120}
+              />
+            </label>
+            <label>
+              <span className="field-label">Telefone</span>
+              <input
+                className="field-control"
+                type="tel"
+                value={formulario.phone}
+                onChange={(evento) => alterar("phone", evento.target.value)}
+                required
+                maxLength={30}
+              />
+            </label>
+            <label>
+              <span className="field-label">E-mail (opcional)</span>
+              <input
+                className="field-control"
+                type="email"
+                value={formulario.email}
+                onChange={(evento) => alterar("email", evento.target.value)}
+                maxLength={254}
+              />
+            </label>
+            <label>
+              <span className="field-label">O que procura</span>
+              <textarea
+                className="field-control lead-form-text"
+                value={formulario.naturalSearchDesire}
+                onChange={(evento) =>
+                  alterar("naturalSearchDesire", evento.target.value)
+                }
+                required
+                minLength={3}
+                maxLength={1500}
+                rows={4}
+              />
+              <small className="lead-form-hint">
+                Ao mudar este texto, a pontuação do contato é recalculada.
+              </small>
+            </label>
+            <label>
+              <span className="field-label">Etapa</span>
+              <select
+                className="field-control"
+                value={formulario.stage}
+                onChange={(evento) =>
+                  alterar("stage", evento.target.value as LeadStage)
+                }
+              >
+                {LEAD_STAGES.map((option) => (
+                  <option key={option} value={option}>
+                    {LEAD_STAGE_LABELS[option]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {erroDoFormulario && (
+              <p className="lead-alert" role="alert">
+                {erroDoFormulario}
+              </p>
+            )}
+
+            <div className="lead-form-actions">
+              {podeExcluir &&
+                (confirmandoExclusao ? (
+                  <button
+                    type="button"
+                    className="button-danger button-compact"
+                    disabled={salvando}
+                    onClick={() => void excluir()}
+                  >
+                    Confirmar exclusão
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="button-danger button-compact"
+                    disabled={salvando}
+                    onClick={() => setConfirmandoExclusao(true)}
+                  >
+                    Excluir contato
+                  </button>
+                ))}
+              <span className="lead-form-spacer" />
+              <button
+                type="button"
+                className="button-secondary button-compact"
+                disabled={salvando}
+                onClick={() => setEditando(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="button-primary button-compact"
+                disabled={salvando}
+              >
+                {salvando ? "Salvando…" : "Salvar"}
+              </button>
+            </div>
+          </form>
+        )}
+      </dialog>
     </div>
   );
 }

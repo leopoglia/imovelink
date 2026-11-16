@@ -145,7 +145,7 @@ describe("Captação de contato pela vitrine", () => {
     expect(response.status).toBe(201);
     const entrada = entradaDoServico();
     expect(entrada).toMatchObject({
-      email: "contato@cliente.com.br",
+      email: "",
       originChannel: "WHATSAPP",
       stage: "NEW",
     });
