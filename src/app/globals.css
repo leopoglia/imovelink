@@ -2614,3 +2614,53 @@ textarea.field-control {
     overflow-x: visible;
   }
 }
+
+/* Cadastro de imóvel */
+.field-hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.form-alert {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 13px;
+}
+.field-prefixed {
+  position: relative;
+}
+.field-prefixed > span {
+  position: absolute;
+  top: 50%;
+  left: 16px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+.field-prefixed > .field-control {
+  padding-left: 44px;
+}
+.property-photo-preview {
+  margin-top: 8px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--color-slate-100);
+}
+.property-photo-preview img {
+  display: block;
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+}
+.property-photo-preview p {
+  margin: 0;
+  padding: 12px;
+  color: #be123c;
+  font-size: 13px;
+}

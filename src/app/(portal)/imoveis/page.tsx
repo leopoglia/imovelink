@@ -9,19 +9,19 @@ import {
   Plus,
   ShieldAlert,
   Trash,
-  Xmark,
 } from "iconoir-react";
 import { useTenantStore } from "@/store/tenant-store";
 import { apiFetch } from "@/lib/api";
 import { hasPermission } from "@/lib/auth/rbac";
 import { PropertyAudit } from "@/components/property-audit";
 import { Select, PROPERTY_STATUS_OPTIONS } from "@/components/ui/select";
+import { PropertyCreateDialog } from "@/components/property-create-dialog";
+import { BAIRROS_JARAGUA } from "@/lib/geo";
 import {
   ExternalListing,
   Property,
   PropertyAuditLog,
   PropertyStatus,
-  PropertyType,
 } from "@/types/domain";
 
 export default function ImoveisPortfolioPage() {
@@ -33,20 +33,6 @@ export default function ImoveisPortfolioPage() {
   );
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [rbacFeedback, setRbacFeedback] = useState<string | null>(null);
-
-  const [title, setTitle] = useState("");
-  const [type, setType] = useState<PropertyType>("HOUSE");
-  const [price, setPrice] = useState("");
-  const [neighborhood, setNeighborhood] = useState("Vila Nova");
-  const [street, setStreet] = useState("");
-  const [bedrooms, setBedrooms] = useState("0");
-  const [suites, setSuites] = useState("0");
-  const [bathrooms, setBathrooms] = useState("0");
-  const [parkingSpots, setParkingSpots] = useState("0");
-  const [areaBuilt, setAreaBuilt] = useState("0");
-  const [areaTotal, setAreaTotal] = useState("0");
-  const [amenitiesText, setAmenitiesText] = useState("");
-  const [description, setDescription] = useState("");
 
   const { data, isPending, isError, refetch } = useQuery<{
     properties: Property[];
@@ -67,53 +53,16 @@ export default function ImoveisPortfolioPage() {
   const properties = data?.properties ?? [];
   const auditLogs = data?.auditLogs ?? [];
   const externalListings = data?.externalListings ?? [];
+  // Sugestões do campo de bairro: os bairros conhecidos e os já usados na carteira.
+  const bairros = [
+    ...new Set([
+      ...Object.values(BAIRROS_JARAGUA).map((item) => item.bairro),
+      ...properties.map((prop) => prop.addressNeighborhood),
+    ]),
+  ].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const fontePorId = new Map(
     (data?.externalSources ?? []).map((fonte) => [fonte.id, fonte]),
   );
-
-  const createPropertyMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiFetch("/api/properties", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description,
-          type,
-          purpose: "SALE",
-          price: Number(price),
-          bedrooms: Number(bedrooms),
-          suites: Number(suites),
-          bathrooms: Number(bathrooms),
-          parkingSpots: Number(parkingSpots),
-          areaTotal: Number(areaTotal),
-          areaBuilt: Number(areaBuilt),
-          addressStreet: street,
-          addressNeighborhood: neighborhood,
-          amenities: amenitiesText
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean),
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Falha ao cadastrar imóvel");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ["properties", currentTenant.id],
-      });
-      setShowCreateModal(false);
-      setTitle("");
-      setPrice("");
-      setStreet("");
-      setDescription("");
-      setAmenitiesText("");
-    },
-  });
 
   const updatePropertyMutation = useMutation({
     mutationFn: async ({
@@ -432,200 +381,17 @@ export default function ImoveisPortfolioPage() {
         />
       )}
 
-
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/30 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h2 className="text-base font-semibold text-slate-900">
-                Cadastrar Novo Imóvel
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(false)}
-                aria-label="Fechar cadastro de imóvel"
-                className="icon-button"
-              >
-                <Xmark aria-hidden="true" className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="sm:col-span-2">
-                <label className="field-label">Título do Imóvel *</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Ex: Casa com Quintal Arborizado na Vila Nova"
-                  className="field-control"
-                />
-              </div>
-
-              <div>
-                <label className="field-label" htmlFor="property-type">
-                  Tipo
-                </label>
-                <Select
-                  id="property-type"
-                  value={type}
-                  onValueChange={(value) => setType(value as PropertyType)}
-                  options={[
-                    { value: "HOUSE", label: "Casa / Sobrado" },
-                    { value: "APARTMENT", label: "Apartamento / Studio" },
-                    { value: "PENTHOUSE", label: "Cobertura Duplex" },
-                    { value: "COMMERCIAL", label: "Comercial" },
-                    { value: "LAND", label: "Terreno" },
-                  ]}
-                />
-              </div>
-
-              <div>
-                <label className="field-label">Valor de Venda (R$)</label>
-                <input
-                  type="number"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  className="field-control"
-                />
-              </div>
-
-              <div>
-                <label className="field-label" htmlFor="property-neighborhood">
-                  Bairro
-                </label>
-                <Select
-                  id="property-neighborhood"
-                  value={neighborhood}
-                  onValueChange={setNeighborhood}
-                  options={[
-                    "Centro",
-                    "Vila Nova",
-                    "Czerniewicz",
-                    "Baependi",
-                    "Barra do Rio Cerro",
-                    "Rau",
-                    "Ilha da Figueira",
-                    "Água Verde",
-                  ].map((value) => ({ value, label: value }))}
-                />
-              </div>
-
-              <div>
-                <label className="field-label">Rua e Número</label>
-                <input
-                  type="text"
-                  value={street}
-                  onChange={(e) => setStreet(e.target.value)}
-                  className="field-control"
-                />
-              </div>
-
-              <div className="grid grid-cols-4 gap-2 sm:col-span-2">
-                <div>
-                  <label className="field-label">Quartos</label>
-                  <input
-                    type="number"
-                    value={bedrooms}
-                    onChange={(e) => setBedrooms(e.target.value)}
-                    className="field-control"
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Suítes</label>
-                  <input
-                    type="number"
-                    value={suites}
-                    onChange={(e) => setSuites(e.target.value)}
-                    className="field-control"
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Banheiros</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={bathrooms}
-                    onChange={(e) => setBathrooms(e.target.value)}
-                    className="field-control"
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Vagas</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={parkingSpots}
-                    onChange={(e) => setParkingSpots(e.target.value)}
-                    className="field-control"
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Área construída (m²)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={areaBuilt}
-                    onChange={(e) => setAreaBuilt(e.target.value)}
-                    className="field-control"
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Área total (m²)</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={areaTotal}
-                    onChange={(e) => setAreaTotal(e.target.value)}
-                    className="field-control"
-                  />
-                </div>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="field-label">
-                  Comodidades (separadas por vírgula)
-                </label>
-                <input
-                  type="text"
-                  value={amenitiesText}
-                  onChange={(e) => setAmenitiesText(e.target.value)}
-                  className="field-control"
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="field-label">Descrição</label>
-                <textarea
-                  rows={3}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="field-control"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(false)}
-                className="button-secondary"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                disabled={createPropertyMutation.isPending}
-                onClick={() => createPropertyMutation.mutate()}
-                className="button-primary"
-              >
-                {createPropertyMutation.isPending
-                  ? "Salvando..."
-                  : "Salvar Imóvel"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <PropertyCreateDialog
+          bairros={bairros}
+          onClose={() => setShowCreateModal(false)}
+          onCreated={() => {
+            setShowCreateModal(false);
+            void queryClient.invalidateQueries({
+              queryKey: ["properties", currentTenant.id],
+            });
+          }}
+        />
       )}
     </div>
   );
