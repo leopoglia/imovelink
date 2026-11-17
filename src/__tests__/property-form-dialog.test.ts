@@ -385,14 +385,6 @@ describe("Descrição gerada", () => {
     );
   });
 
-  it("o botão Gerar descrição reescreve o texto com os campos atuais", () => {
-    abrir();
-    preencher({ "Bairro *": "Vila Nova", "Quartos": "1", "Descrição *": "texto antigo" });
-    fireEvent.click(screen.getByRole("button", { name: "Gerar descrição" }));
-    expect(campo("Descrição *").value).toBe(
-      "Casa à venda no bairro Vila Nova, em Jaraguá do Sul, com 1 quarto.",
-    );
-  });
 });
 
 describe("Tipo deduzido pelo título do anúncio", () => {

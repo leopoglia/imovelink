@@ -517,18 +517,9 @@ export function PropertyFormDialog({
           </div>
 
           <div className="sm:col-span-2">
-            <div className="field-label-row">
-              <label className="field-label" htmlFor="imovel-descricao">
-                Descrição *
-              </label>
-              <button
-                type="button"
-                className="link-button"
-                onClick={() => alterar("description", gerarDescricao(campos))}
-              >
-                Gerar descrição
-              </button>
-            </div>
+            <label className="field-label" htmlFor="imovel-descricao">
+              Descrição *
+            </label>
             <textarea
               id="imovel-descricao"
               rows={3}
