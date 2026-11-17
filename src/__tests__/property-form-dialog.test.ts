@@ -12,6 +12,9 @@ import {
   ModoDoFormulario,
   PropertyFormDialog,
   camposDoAnuncio,
+  gerarDescricao,
+  tipoPeloTitulo,
+  CAMPOS_VAZIOS,
   formatarMilhar,
   somenteDigitos,
 } from "@/components/property-form-dialog";
@@ -50,7 +53,7 @@ const COMPLETO = {
   "Título do imóvel *": "Casa com piscina no Centro",
   "Valor de venda *": "850000",
   "Bairro *": "Centro",
-  "Rua e número *": "Rua Marechal Deodoro, 450",
+  "Rua e número": "Rua Marechal Deodoro, 450",
   "Descrição *": "Casa térrea com piscina e quintal.",
 };
 
@@ -104,7 +107,6 @@ describe("Cadastro de imóvel", () => {
     [{}, "Informe o título do imóvel (pelo menos 3 letras)."],
     [{ "Valor de venda *": "" }, "Informe o valor de venda."],
     [{ "Bairro *": "  " }, "Informe o bairro."],
-    [{ "Rua e número *": "" }, "Informe a rua e o número."],
     [{ "Link da foto": "foto.jpg" }, "O link da foto precisa começar com https://."],
     [{ "Descrição *": "" }, "Escreva uma descrição do imóvel."],
   ])("mostra o que falta sem chamar o servidor (%o)", (troca, mensagem) => {
@@ -297,7 +299,7 @@ const anuncio: ExternalListing = {
 };
 
 describe("Trazer anúncio de outro site para a carteira", () => {
-  it("preenche os dados factuais, sem foto nem descrição", () => {
+  it("preenche os dados, a foto do anúncio e uma descrição gerada", () => {
     abrir({ tipo: "importar", anuncio, fonte: "Poder Imóveis" });
     expect(
       screen.getByRole("dialog", { name: "Trazer para a minha carteira" }),
@@ -308,8 +310,14 @@ describe("Trazer anúncio de outro site para a carteira", () => {
     expect(campo("Quartos").value).toBe("2");
     expect(campo("Vagas").value).toBe("1");
     expect(campo("Área total (m²)").value).toBe("68");
-    expect(campo("Link da foto").value).toBe("");
-    expect(campo("Descrição *").value).toBe("");
+    expect(campo("Link da foto").value).toBe(anuncio.imageUrl);
+    expect(screen.getByAltText("Prévia da foto do imóvel").getAttribute("src")).toBe(
+      anuncio.imageUrl,
+    );
+    expect(campo("Descrição *").value).toBe(
+      "Apartamento à venda no bairro Czerniewicz, em Jaraguá do Sul, com 2 quartos e 1 vaga de garagem. São 68 m² de área total. Valor: R$ 420.000.",
+    );
+    expect(screen.queryByText(/Cole o endereço/)).toBeNull();
     expect(screen.getByText(/em Poder Imóveis/)).toBeTruthy();
     expect(
       screen.getByRole("link", { name: "Ver anúncio de origem" }).getAttribute("href"),
@@ -319,20 +327,19 @@ describe("Trazer anúncio de outro site para a carteira", () => {
   it("cadastra como imóvel próprio à venda", async () => {
     fetchMock.mockResolvedValue(json({ property: { id: "novo" } }, 201));
     abrir({ tipo: "importar", anuncio });
-    preencher({
-      "Rua e número *": "Rua B, 20",
-      "Descrição *": "Apartamento com sacada.",
-    });
+    // Sem rua: o campo é opcional.
     salvar();
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/properties");
     expect(JSON.parse(init.body)).toMatchObject({
       title: anuncio.title,
+      type: "APARTMENT",
       price: 420000,
       purpose: "SALE",
       addressNeighborhood: "Czerniewicz",
-      images: [],
+      addressStreet: "",
+      images: [anuncio.imageUrl],
     });
   });
 
@@ -345,5 +352,60 @@ describe("Trazer anúncio de outro site para a carteira", () => {
         bedrooms: null,
       }),
     ).toMatchObject({ price: "", neighborhood: "", bedrooms: "0" });
+  });
+});
+
+describe("Descrição gerada", () => {
+  const base = { ...CAMPOS_VAZIOS, neighborhood: "Centro" };
+
+  it("usa só o que foi informado, com plural certo", () => {
+    expect(
+      gerarDescricao({
+        ...base,
+        type: "HOUSE",
+        bedrooms: "3",
+        suites: "1",
+        bathrooms: "2",
+        parkingSpots: "2",
+        areaBuilt: "180",
+        areaTotal: "360",
+        price: "950000",
+      }),
+    ).toBe(
+      "Casa à venda no bairro Centro, em Jaraguá do Sul, com 3 quartos (1 suíte), 2 banheiros e 2 vagas de garagem. São 180 m² de área construída e 360 m² de área total. Valor: R$ 950.000.",
+    );
+  });
+
+  it("fica curta quando quase nada foi informado", () => {
+    expect(gerarDescricao({ ...CAMPOS_VAZIOS, type: "LAND" })).toBe(
+      "Terreno à venda, em Jaraguá do Sul.",
+    );
+    expect(gerarDescricao({ ...base, type: "COMMERCIAL", suites: "2" })).toBe(
+      "Imóvel comercial à venda no bairro Centro, em Jaraguá do Sul, com 2 suítes.",
+    );
+  });
+
+  it("o botão Gerar descrição reescreve o texto com os campos atuais", () => {
+    abrir();
+    preencher({ "Bairro *": "Vila Nova", "Quartos": "1", "Descrição *": "texto antigo" });
+    fireEvent.click(screen.getByRole("button", { name: "Gerar descrição" }));
+    expect(campo("Descrição *").value).toBe(
+      "Casa à venda no bairro Vila Nova, em Jaraguá do Sul, com 1 quarto.",
+    );
+  });
+});
+
+describe("Tipo deduzido pelo título do anúncio", () => {
+  it.each([
+    ["Cobertura duplex no Baependi", "PENTHOUSE"],
+    ["Apartamento 2 quartos", "APARTMENT"],
+    ["Casa com sala ampla", "HOUSE"],
+    ["Sobrado geminado", "HOUSE"],
+    ["Terreno de esquina", "LAND"],
+    ["Sala comercial no Centro", "COMMERCIAL"],
+    ["Galpão na BR-280", "COMMERCIAL"],
+    ["Imóvel no Rau", "HOUSE"],
+  ])("%s → %s", (titulo, tipo) => {
+    expect(tipoPeloTitulo(titulo)).toBe(tipo);
   });
 });

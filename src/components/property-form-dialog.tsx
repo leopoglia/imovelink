@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Xmark } from "iconoir-react";
 import { apiFetch } from "@/lib/api";
 import { Select } from "@/components/ui/select";
+import { normalizarTexto } from "@/lib/geo";
 import { ExternalListing, Property, PropertyType } from "@/types/domain";
 
 const TIPOS = [
@@ -73,20 +74,94 @@ export function camposDoImovel(imovel: Property): CamposDoImovel {
   };
 }
 
+/** Deduz o tipo pelo título do anúncio, que é onde os sites costumam dizê-lo. */
+export function tipoPeloTitulo(titulo: string): PropertyType {
+  const texto = normalizarTexto(titulo);
+  const palavras = new Set(texto.split(/[^a-z0-9]+/));
+  const tem = (lista: string[]) => lista.some((item) => palavras.has(item));
+  if (tem(["cobertura"])) return "PENTHOUSE";
+  if (tem(["apartamento", "apto", "studio", "kitnet", "loft"]))
+    return "APARTMENT";
+  // "Casa com sala ampla" é casa: o tipo residencial vem antes de "sala".
+  if (tem(["casa", "sobrado", "geminado", "chacara"])) return "HOUSE";
+  if (tem(["terreno", "lote"])) return "LAND";
+  if (tem(["sala", "loja", "galpao", "comercial"])) return "COMMERCIAL";
+  return "HOUSE";
+}
+
+const NOMES_DO_TIPO: Record<PropertyType, string> = {
+  HOUSE: "Casa",
+  APARTMENT: "Apartamento",
+  PENTHOUSE: "Cobertura",
+  COMMERCIAL: "Imóvel comercial",
+  LAND: "Terreno",
+};
+
+const plural = (quantidade: number, singular: string, varios: string) =>
+  `${quantidade} ${quantidade === 1 ? singular : varios}`;
+
+/** Junta itens como "a, b e c". */
+function listar(itens: string[]): string {
+  if (itens.length <= 1) return itens.join("");
+  return `${itens.slice(0, -1).join(", ")} e ${itens[itens.length - 1]}`;
+}
+
 /**
- * Preenche o cadastro com os dados factuais de um anúncio de outro site.
- * Foto e descrição não são copiadas: continuam sendo do site de origem.
+ * Escreve uma descrição a partir dos dados do formulário. Só entra o que foi
+ * informado: zero quartos ou área vazia não aparecem no texto.
+ */
+export function gerarDescricao(campos: CamposDoImovel): string {
+  const numero = (valor: string) => Number(valor) || 0;
+  const quartos = numero(campos.bedrooms);
+  const suites = numero(campos.suites);
+  const banheiros = numero(campos.bathrooms);
+  const vagas = numero(campos.parkingSpots);
+  const construida = numero(campos.areaBuilt);
+  const total = numero(campos.areaTotal);
+  const bairro = campos.neighborhood.trim();
+
+  let abertura = `${NOMES_DO_TIPO[campos.type]} à venda`;
+  if (bairro) abertura += ` no bairro ${bairro}`;
+  abertura += ", em Jaraguá do Sul";
+
+  const itens: string[] = [];
+  if (quartos)
+    itens.push(
+      plural(quartos, "quarto", "quartos") +
+        (suites ? ` (${plural(suites, "suíte", "suítes")})` : ""),
+    );
+  else if (suites) itens.push(plural(suites, "suíte", "suítes"));
+  if (banheiros) itens.push(plural(banheiros, "banheiro", "banheiros"));
+  if (vagas) itens.push(plural(vagas, "vaga de garagem", "vagas de garagem"));
+
+  const frases = [itens.length ? `${abertura}, com ${listar(itens)}.` : `${abertura}.`];
+
+  const areas: string[] = [];
+  if (construida) areas.push(`${construida.toLocaleString("pt-BR")} m² de área construída`);
+  if (total) areas.push(`${total.toLocaleString("pt-BR")} m² de área total`);
+  if (areas.length) frases.push(`São ${listar(areas)}.`);
+
+  if (campos.price) frases.push(`Valor: R$ ${formatarMilhar(campos.price)}.`);
+  return frases.join(" ");
+}
+
+/**
+ * Preenche o cadastro com um anúncio de outro site: dados, foto (pelo
+ * endereço da origem) e uma descrição gerada a partir desses dados.
  */
 export function camposDoAnuncio(anuncio: ExternalListing): CamposDoImovel {
-  return {
+  const campos: CamposDoImovel = {
     ...CAMPOS_VAZIOS,
     title: anuncio.title,
+    type: tipoPeloTitulo(anuncio.title),
     price: anuncio.price === null ? "" : somenteDigitos(inteiro(anuncio.price)),
     neighborhood: anuncio.neighborhood ?? "",
     bedrooms: inteiro(anuncio.bedrooms),
     parkingSpots: inteiro(anuncio.parkingSpots),
     areaTotal: inteiro(anuncio.areaTotal),
+    imageUrl: anuncio.imageUrl ?? "",
   };
+  return { ...campos, description: gerarDescricao(campos) };
 }
 
 /** Devolve a primeira pendência do formulário, ou null se ele pode ser enviado. */
@@ -95,7 +170,6 @@ export function validarImovel(campos: CamposDoImovel): string | null {
     return "Informe o título do imóvel (pelo menos 3 letras).";
   if (!campos.price) return "Informe o valor de venda.";
   if (!campos.neighborhood.trim()) return "Informe o bairro.";
-  if (!campos.street.trim()) return "Informe a rua e o número.";
   if (campos.imageUrl.trim() && !linkDeImagemValido(campos.imageUrl.trim()))
     return "O link da foto precisa começar com https://.";
   if (campos.description.trim().length < 3)
@@ -276,9 +350,9 @@ export function PropertyFormDialog({
 
         {modo.tipo === "importar" && (
           <p className="field-hint">
-            Trouxemos os dados do anúncio
-            {modo.fonte ? ` em ${modo.fonte}` : ""}. A foto e a descrição não
-            são copiadas, porque pertencem a quem publicou: use as suas.{" "}
+            Trouxemos os dados e a foto do anúncio
+            {modo.fonte ? ` em ${modo.fonte}` : ""} e escrevemos uma descrição
+            com eles. Confira antes de salvar.{" "}
             <a href={modo.anuncio.url} target="_blank" rel="noopener noreferrer nofollow">
               Ver anúncio de origem
             </a>
@@ -357,7 +431,7 @@ export function PropertyFormDialog({
 
           <div>
             <label className="field-label" htmlFor="imovel-rua">
-              Rua e número *
+              Rua e número
             </label>
             <input
               id="imovel-rua"
@@ -422,14 +496,8 @@ export function PropertyFormDialog({
                 setFotoQuebrada(false);
                 alterar("imageUrl", e.target.value);
               }}
-              aria-describedby="imovel-foto-dica"
               className="field-control"
             />
-            <p id="imovel-foto-dica" className="field-hint">
-              {modo.tipo === "editar"
-                ? "Cole o endereço de outra imagem para trocar a foto principal."
-                : "Cole o endereço de uma imagem já publicada. Sem foto, o imóvel recebe uma imagem padrão do tipo escolhido."}
-            </p>
             {fotoValida && (
               <div className="property-photo-preview">
                 {fotoQuebrada ? (
@@ -449,9 +517,18 @@ export function PropertyFormDialog({
           </div>
 
           <div className="sm:col-span-2">
-            <label className="field-label" htmlFor="imovel-descricao">
-              Descrição *
-            </label>
+            <div className="field-label-row">
+              <label className="field-label" htmlFor="imovel-descricao">
+                Descrição *
+              </label>
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => alterar("description", gerarDescricao(campos))}
+              >
+                Gerar descrição
+              </button>
+            </div>
             <textarea
               id="imovel-descricao"
               rows={3}

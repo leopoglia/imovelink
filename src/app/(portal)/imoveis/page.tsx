@@ -300,7 +300,9 @@ export default function ImoveisPortfolioPage() {
                         aria-hidden="true"
                         className="w-3.5 h-3.5 text-brand-600"
                       />
-                      {prop.addressNeighborhood} • {prop.addressStreet}
+                      {[prop.addressNeighborhood, prop.addressStreet]
+                        .filter(Boolean)
+                        .join(" • ")}
                     </p>
                     <h3 className="text-sm font-semibold text-slate-900 mt-1 line-clamp-1">
                       {canEdit ? (

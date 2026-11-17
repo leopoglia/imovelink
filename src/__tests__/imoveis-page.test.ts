@@ -116,7 +116,7 @@ describe("Página de imóveis", () => {
       "Título do imóvel *": "Casa nova no Centro",
       "Valor de venda *": "500000",
       "Bairro *": "Centro",
-      "Rua e número *": "Rua A, 10",
+      "Rua e número": "Rua A, 10",
       "Descrição *": "Casa nova.",
     }))
       fireEvent.change(screen.getByLabelText(rotulo), {

@@ -20,7 +20,8 @@ export const propertyInput = z.object({
   parkingSpots: count.default(0),
   areaTotal: amount.default(0),
   areaBuilt: amount.default(0),
-  addressStreet: z.string().trim().min(1).max(240),
+  // Rua e número são opcionais: o anúncio trazido de outro site raramente os informa.
+  addressStreet: z.string().trim().max(240).default(""),
   addressNeighborhood: z.string().trim().min(1).max(100),
   addressCity: z.string().trim().min(1).max(100).default("Jaraguá do Sul"),
   addressState: z
