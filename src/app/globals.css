@@ -2511,25 +2511,63 @@ textarea.field-control {
   color: var(--muted);
   font-size: 12px;
 }
-.lead-move {
+.lead-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lead-dialog {
+  width: min(520px, calc(100vw - 32px));
+  max-height: 90vh;
+  margin: auto;
+  padding: 24px;
+  border: 1px solid var(--field-border);
+  border-radius: 18px;
+  background: var(--canvas);
+  color: var(--ink);
+  overflow: auto;
+}
+.lead-dialog::backdrop {
+  background: rgb(15 27 43 / 0.45);
+  backdrop-filter: blur(2px);
+}
+.lead-form {
   display: grid;
-  gap: 4px;
+  gap: 16px;
+}
+.lead-form h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+.lead-form label {
+  display: block;
+}
+.lead-form .field-control {
+  width: 100%;
+}
+.lead-form-text {
+  min-height: 96px;
+  height: auto;
+  padding-top: 12px;
+  padding-bottom: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.lead-form-hint {
+  display: block;
+  margin-top: 6px;
   color: var(--muted);
   font-size: 12px;
 }
-.lead-move select {
-  min-height: 36px;
-  padding: 0 10px;
-  border: 1px solid var(--field-border);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--ink);
-  font-size: 13px;
+.lead-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
-.lead-move select:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: var(--field-focus);
+.lead-form-spacer {
+  flex: 1;
 }
 .lead-suggestions li {
   display: grid;

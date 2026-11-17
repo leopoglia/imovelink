@@ -84,7 +84,7 @@ async function handlePOST(req: NextRequest) {
       assignedBrokerId: broker.id,
       assignedBrokerName: broker.name,
       name: contato.name,
-      email: contato.email ?? "contato@cliente.com.br",
+      email: contato.email ?? "",
       phone: contato.phone,
       originChannel: contato.originChannel,
       naturalSearchDesire: contato.naturalSearchDesire,
