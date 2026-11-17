@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  Filter,
   Internet,
   JournalPage,
   MapPin,
@@ -20,6 +21,14 @@ import {
   PropertyFormDialog,
 } from "@/components/property-form-dialog";
 import { BAIRROS_JARAGUA } from "@/lib/geo";
+import { PropertyFiltersPanel } from "@/components/property-filters-panel";
+import {
+  FILTROS_PADRAO,
+  FiltrosDeImoveis,
+  bairrosDisponiveis,
+  contarFiltrosAtivos,
+  filtrarImoveis,
+} from "@/lib/property-filters";
 import {
   ExternalListing,
   Property,
@@ -36,6 +45,8 @@ export default function ImoveisPortfolioPage() {
   );
   const [formulario, setFormulario] = useState<ModoDoFormulario | null>(null);
   const [rbacFeedback, setRbacFeedback] = useState<string | null>(null);
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [filtros, setFiltros] = useState<FiltrosDeImoveis>(FILTROS_PADRAO);
 
   const { data, isPending, isError, refetch } = useQuery<{
     properties: Property[];
@@ -63,6 +74,10 @@ export default function ImoveisPortfolioPage() {
       ...properties.map((prop) => prop.addressNeighborhood),
     ]),
   ].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const visiveis = filtrarImoveis(properties, externalListings, filtros);
+  const filtrosAtivos = contarFiltrosAtivos(filtros);
+  const totalImoveis = properties.length + externalListings.length;
+  const totalVisivel = visiveis.imoveis.length + visiveis.anuncios.length;
   const fontePorId = new Map(
     (data?.externalSources ?? []).map((fonte) => [fonte.id, fonte]),
   );
@@ -152,6 +167,27 @@ export default function ImoveisPortfolioPage() {
             </button>
           </div>
 
+          {activeTab === "PORTFOLIO" && (
+            <button
+              type="button"
+              onClick={() => setMostrarFiltros((aberto) => !aberto)}
+              aria-expanded={mostrarFiltros}
+              aria-controls="painel-filtros"
+              className="button-secondary"
+            >
+              <Filter aria-hidden="true" className="w-4 h-4" />
+              Filtros
+              {filtrosAtivos > 0 && (
+                <span
+                  className="filter-count"
+                  aria-label={`${filtrosAtivos} filtros ativos`}
+                >
+                  {filtrosAtivos}
+                </span>
+              )}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setFormulario({ tipo: "novo" })}
@@ -175,15 +211,43 @@ export default function ImoveisPortfolioPage() {
 
       {activeTab === "PORTFOLIO" && (
         <>
-          {externalListings.length > 0 && (
-            <p className="text-xs text-slate-500">
-              <strong>{properties.length}</strong> da sua carteira ·{" "}
-              <strong>{externalListings.length}</strong> de outros sites,
-              com link para a origem.
+          {mostrarFiltros && (
+            <div id="painel-filtros">
+              <PropertyFiltersPanel
+                filtros={filtros}
+                bairros={bairrosDisponiveis(properties, externalListings)}
+                onChange={setFiltros}
+              />
+            </div>
+          )}
+          {filtrosAtivos > 0 ? (
+            <p className="text-xs text-slate-500" role="status">
+              Mostrando <strong>{totalVisivel}</strong> de{" "}
+              <strong>{totalImoveis}</strong> imóveis.
             </p>
+          ) : (
+            externalListings.length > 0 && (
+              <p className="text-xs text-slate-500">
+                <strong>{properties.length}</strong> da sua carteira ·{" "}
+                <strong>{externalListings.length}</strong> de outros sites,
+                com link para a origem.
+              </p>
+            )
+          )}
+          {filtrosAtivos > 0 && totalVisivel === 0 && (
+            <div className="property-filters-empty">
+              <p>Nenhum imóvel encontrado com esses filtros.</p>
+              <button
+                type="button"
+                className="button-secondary button-compact"
+                onClick={() => setFiltros(FILTROS_PADRAO)}
+              >
+                Limpar filtros
+              </button>
+            </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {properties.map((prop) => (
+          {visiveis.imoveis.map((prop) => (
             <div
               key={prop.id}
               className={`rounded-2xl bg-white border border-slate-200/80 overflow-hidden flex flex-col justify-between hover:border-slate-300 transition ${canEdit ? "cursor-pointer" : ""}`}
@@ -308,7 +372,7 @@ export default function ImoveisPortfolioPage() {
               </div>
             </div>
           ))}
-          {externalListings.map((anuncio) => (
+          {visiveis.anuncios.map((anuncio) => (
             <div
               key={anuncio.id}
               className="rounded-2xl bg-white border border-dashed border-slate-300 overflow-hidden flex flex-col justify-between hover:border-slate-400 transition"
