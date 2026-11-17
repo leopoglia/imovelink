@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Xmark } from "iconoir-react";
 import { apiFetch } from "@/lib/api";
 import { Select } from "@/components/ui/select";
-import { Property, PropertyType } from "@/types/domain";
+import { ExternalListing, Property, PropertyType } from "@/types/domain";
 
 const TIPOS = [
   { value: "HOUSE", label: "Casa / Sobrado" },
@@ -33,7 +33,7 @@ function linkDeImagemValido(valor: string): boolean {
   }
 }
 
-const VAZIO = {
+export const CAMPOS_VAZIOS = {
   title: "",
   type: "HOUSE" as PropertyType,
   price: "",
@@ -49,10 +49,48 @@ const VAZIO = {
   description: "",
 };
 
-type Campos = typeof VAZIO;
+export type CamposDoImovel = typeof CAMPOS_VAZIOS;
+
+const inteiro = (valor: number | null | undefined) =>
+  valor === null || valor === undefined ? "0" : String(Math.round(valor));
+
+/** Preenche o formulário com um imóvel da carteira, para edição. */
+export function camposDoImovel(imovel: Property): CamposDoImovel {
+  return {
+    title: imovel.title,
+    type: imovel.type,
+    price: somenteDigitos(inteiro(imovel.price)),
+    neighborhood: imovel.addressNeighborhood,
+    street: imovel.addressStreet,
+    bedrooms: inteiro(imovel.bedrooms),
+    suites: inteiro(imovel.suites),
+    bathrooms: inteiro(imovel.bathrooms),
+    parkingSpots: inteiro(imovel.parkingSpots),
+    areaBuilt: inteiro(imovel.areaBuilt),
+    areaTotal: inteiro(imovel.areaTotal),
+    imageUrl: imovel.images[0] ?? "",
+    description: imovel.description,
+  };
+}
+
+/**
+ * Preenche o cadastro com os dados factuais de um anúncio de outro site.
+ * Foto e descrição não são copiadas: continuam sendo do site de origem.
+ */
+export function camposDoAnuncio(anuncio: ExternalListing): CamposDoImovel {
+  return {
+    ...CAMPOS_VAZIOS,
+    title: anuncio.title,
+    price: anuncio.price === null ? "" : somenteDigitos(inteiro(anuncio.price)),
+    neighborhood: anuncio.neighborhood ?? "",
+    bedrooms: inteiro(anuncio.bedrooms),
+    parkingSpots: inteiro(anuncio.parkingSpots),
+    areaTotal: inteiro(anuncio.areaTotal),
+  };
+}
 
 /** Devolve a primeira pendência do formulário, ou null se ele pode ser enviado. */
-export function validarImovel(campos: Campos): string | null {
+export function validarImovel(campos: CamposDoImovel): string | null {
   if (campos.title.trim().length < 3)
     return "Informe o título do imóvel (pelo menos 3 letras).";
   if (!campos.price) return "Informe o valor de venda.";
@@ -65,26 +103,88 @@ export function validarImovel(campos: Campos): string | null {
   return null;
 }
 
-interface PropertyCreateDialogProps {
-  bairros: string[];
-  onClose: () => void;
-  onCreated: (property: Property) => void;
+/** Converte o formulário nos campos que a API de imóveis recebe. */
+function paraApi(campos: CamposDoImovel) {
+  const foto = campos.imageUrl.trim();
+  return {
+    title: campos.title.trim(),
+    description: campos.description.trim(),
+    type: campos.type,
+    price: Number(campos.price),
+    bedrooms: Number(campos.bedrooms) || 0,
+    suites: Number(campos.suites) || 0,
+    bathrooms: Number(campos.bathrooms) || 0,
+    parkingSpots: Number(campos.parkingSpots) || 0,
+    areaBuilt: Number(campos.areaBuilt) || 0,
+    areaTotal: Number(campos.areaTotal) || 0,
+    addressStreet: campos.street.trim(),
+    addressNeighborhood: campos.neighborhood.trim(),
+    images: foto && linkDeImagemValido(foto) ? [foto] : [],
+  };
 }
 
-export function PropertyCreateDialog({
+/**
+ * Só o que mudou em relação ao imóvel salvo. A foto nova entra no lugar da
+ * primeira; apagar o link não remove a foto atual.
+ */
+export function alteracoesDoImovel(
+  imovel: Property,
+  campos: CamposDoImovel,
+): Record<string, unknown> {
+  const antes = paraApi(camposDoImovel(imovel));
+  const depois = paraApi(campos);
+  const mudancas: Record<string, unknown> = {};
+  for (const chave of Object.keys(depois) as (keyof typeof depois)[]) {
+    if (chave === "images") continue;
+    if (depois[chave] !== antes[chave]) mudancas[chave] = depois[chave];
+  }
+  const foto = depois.images[0];
+  if (foto && foto !== imovel.images[0])
+    mudancas.images = [foto, ...imovel.images.slice(1)];
+  return mudancas;
+}
+
+export type ModoDoFormulario =
+  | { tipo: "novo" }
+  | { tipo: "editar"; imovel: Property }
+  | { tipo: "importar"; anuncio: ExternalListing; fonte?: string };
+
+const TITULOS = {
+  novo: "Cadastrar novo imóvel",
+  editar: "Editar imóvel",
+  importar: "Trazer para a minha carteira",
+};
+
+function camposIniciais(modo: ModoDoFormulario): CamposDoImovel {
+  if (modo.tipo === "editar") return camposDoImovel(modo.imovel);
+  if (modo.tipo === "importar") return camposDoAnuncio(modo.anuncio);
+  return CAMPOS_VAZIOS;
+}
+
+interface PropertyFormDialogProps {
+  modo: ModoDoFormulario;
+  bairros: string[];
+  onClose: () => void;
+  onSaved: (property: Property) => void;
+}
+
+export function PropertyFormDialog({
+  modo,
   bairros,
   onClose,
-  onCreated,
-}: PropertyCreateDialogProps) {
-  const [campos, setCampos] = useState<Campos>(VAZIO);
+  onSaved,
+}: PropertyFormDialogProps) {
+  const [campos, setCampos] = useState<CamposDoImovel>(() =>
+    camposIniciais(modo),
+  );
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [fotoQuebrada, setFotoQuebrada] = useState(false);
 
-  const alterar = (campo: keyof Campos, valor: string) =>
+  const alterar = (campo: keyof CamposDoImovel, valor: string) =>
     setCampos((atual) => ({ ...atual, [campo]: valor }));
 
-  const numero = (campo: keyof Campos) => ({
+  const numero = (campo: keyof CamposDoImovel) => ({
     type: "number",
     min: 0,
     inputMode: "numeric" as const,
@@ -97,6 +197,32 @@ export function PropertyCreateDialog({
   const fotoValida =
     campos.imageUrl.trim() !== "" && linkDeImagemValido(campos.imageUrl.trim());
 
+  async function enviar(): Promise<Property | null> {
+    if (modo.tipo === "editar") {
+      const updates = alteracoesDoImovel(modo.imovel, campos);
+      // Nada mudou: fecha sem chamar o servidor.
+      if (Object.keys(updates).length === 0) return modo.imovel;
+      const resposta = await apiFetch(`/api/properties/${modo.imovel.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates }),
+      });
+      const dados = await resposta.json().catch(() => ({}));
+      if (!resposta.ok)
+        throw new Error(dados.error || "Não foi possível alterar o imóvel.");
+      return dados.property;
+    }
+    const resposta = await apiFetch("/api/properties", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...paraApi(campos), purpose: "SALE" }),
+    });
+    const dados = await resposta.json().catch(() => ({}));
+    if (!resposta.ok)
+      throw new Error(dados.error || "Não foi possível cadastrar o imóvel.");
+    return dados.property;
+  }
+
   async function salvar(evento: React.FormEvent) {
     evento.preventDefault();
     const pendencia = validarImovel(campos);
@@ -107,35 +233,11 @@ export function PropertyCreateDialog({
     setErro(null);
     setSalvando(true);
     try {
-      const resposta = await apiFetch("/api/properties", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: campos.title.trim(),
-          description: campos.description.trim(),
-          type: campos.type,
-          purpose: "SALE",
-          price: Number(campos.price),
-          bedrooms: Number(campos.bedrooms) || 0,
-          suites: Number(campos.suites) || 0,
-          bathrooms: Number(campos.bathrooms) || 0,
-          parkingSpots: Number(campos.parkingSpots) || 0,
-          areaBuilt: Number(campos.areaBuilt) || 0,
-          areaTotal: Number(campos.areaTotal) || 0,
-          addressStreet: campos.street.trim(),
-          addressNeighborhood: campos.neighborhood.trim(),
-          images: fotoValida ? [campos.imageUrl.trim()] : [],
-        }),
-      });
-      const dados = await resposta.json().catch(() => ({}));
-      if (!resposta.ok)
-        throw new Error(dados.error || "Não foi possível cadastrar o imóvel.");
-      onCreated(dados.property);
+      const salvo = await enviar();
+      if (salvo) onSaved(salvo);
     } catch (causa) {
       setErro(
-        causa instanceof Error
-          ? causa.message
-          : "Não foi possível cadastrar o imóvel.",
+        causa instanceof Error ? causa.message : "Não foi possível salvar o imóvel.",
       );
     } finally {
       setSalvando(false);
@@ -147,7 +249,7 @@ export function PropertyCreateDialog({
       <form
         role="dialog"
         aria-modal="true"
-        aria-labelledby="titulo-novo-imovel"
+        aria-labelledby="titulo-formulario-imovel"
         noValidate
         onSubmit={(evento) => void salvar(evento)}
         onKeyDown={(evento) => {
@@ -157,20 +259,31 @@ export function PropertyCreateDialog({
       >
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <h2
-            id="titulo-novo-imovel"
+            id="titulo-formulario-imovel"
             className="text-base font-semibold text-slate-900"
           >
-            Cadastrar novo imóvel
+            {TITULOS[modo.tipo]}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fechar cadastro de imóvel"
+            aria-label="Fechar formulário do imóvel"
             className="icon-button"
           >
             <Xmark aria-hidden="true" className="w-5 h-5" />
           </button>
         </div>
+
+        {modo.tipo === "importar" && (
+          <p className="field-hint">
+            Trouxemos os dados do anúncio
+            {modo.fonte ? ` em ${modo.fonte}` : ""}. A foto e a descrição não
+            são copiadas, porque pertencem a quem publicou: use as suas.{" "}
+            <a href={modo.anuncio.url} target="_blank" rel="noopener noreferrer nofollow">
+              Ver anúncio de origem
+            </a>
+          </p>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
           <div className="sm:col-span-2">
@@ -313,8 +426,9 @@ export function PropertyCreateDialog({
               className="field-control"
             />
             <p id="imovel-foto-dica" className="field-hint">
-              Cole o endereço de uma imagem já publicada. Sem foto, o imóvel
-              recebe uma imagem padrão do tipo escolhido.
+              {modo.tipo === "editar"
+                ? "Cole o endereço de outra imagem para trocar a foto principal."
+                : "Cole o endereço de uma imagem já publicada. Sem foto, o imóvel recebe uma imagem padrão do tipo escolhido."}
             </p>
             {fotoValida && (
               <div className="property-photo-preview">

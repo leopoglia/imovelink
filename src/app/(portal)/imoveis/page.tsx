@@ -15,7 +15,10 @@ import { apiFetch } from "@/lib/api";
 import { hasPermission } from "@/lib/auth/rbac";
 import { PropertyAudit } from "@/components/property-audit";
 import { Select, PROPERTY_STATUS_OPTIONS } from "@/components/ui/select";
-import { PropertyCreateDialog } from "@/components/property-create-dialog";
+import {
+  ModoDoFormulario,
+  PropertyFormDialog,
+} from "@/components/property-form-dialog";
 import { BAIRROS_JARAGUA } from "@/lib/geo";
 import {
   ExternalListing,
@@ -31,7 +34,7 @@ export default function ImoveisPortfolioPage() {
   const [activeTab, setActiveTab] = useState<"PORTFOLIO" | "AUDIT">(
     "PORTFOLIO",
   );
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [formulario, setFormulario] = useState<ModoDoFormulario | null>(null);
   const [rbacFeedback, setRbacFeedback] = useState<string | null>(null);
 
   const { data, isPending, isError, refetch } = useQuery<{
@@ -118,6 +121,8 @@ export default function ImoveisPortfolioPage() {
   });
 
   const canDelete = hasPermission(currentUser.role, "properties:delete");
+  const canEdit = hasPermission(currentUser.role, "properties:edit");
+  const canCreate = hasPermission(currentUser.role, "properties:create");
 
   return (
     <div className="space-y-6">
@@ -149,7 +154,7 @@ export default function ImoveisPortfolioPage() {
 
           <button
             type="button"
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => setFormulario({ tipo: "novo" })}
             className="button-primary"
           >
             <Plus aria-hidden="true" className="w-4 h-4" />
@@ -173,15 +178,24 @@ export default function ImoveisPortfolioPage() {
           {externalListings.length > 0 && (
             <p className="text-xs text-slate-500">
               <strong>{properties.length}</strong> da sua carteira ·{" "}
-              <strong>{externalListings.length}</strong> de outros sites
-              (somente leitura, com link para a origem).
+              <strong>{externalListings.length}</strong> de outros sites,
+              com link para a origem.
             </p>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {properties.map((prop) => (
             <div
               key={prop.id}
-              className="rounded-2xl bg-white border border-slate-200/80 overflow-hidden flex flex-col justify-between hover:border-slate-300 transition"
+              className={`rounded-2xl bg-white border border-slate-200/80 overflow-hidden flex flex-col justify-between hover:border-slate-300 transition ${canEdit ? "cursor-pointer" : ""}`}
+              // Clicar no card abre a edição. O status, a exclusão e o menu do
+              // status (que é renderizado fora do card) mantêm a própria ação.
+              onClick={(event) => {
+                const alvo = event.target as HTMLElement;
+                if (!canEdit || !event.currentTarget.contains(alvo)) return;
+                if (alvo.closest("a, button, [role=option]")) return;
+                if (window.getSelection()?.toString()) return;
+                setFormulario({ tipo: "editar", imovel: prop });
+              }}
             >
               <div>
                 <div className="relative h-44 bg-slate-100">
@@ -235,7 +249,21 @@ export default function ImoveisPortfolioPage() {
                       {prop.addressNeighborhood} • {prop.addressStreet}
                     </p>
                     <h3 className="text-sm font-semibold text-slate-900 mt-1 line-clamp-1">
-                      {prop.title}
+                      {canEdit ? (
+                        // Pelo teclado, o título é o botão que abre a edição.
+                        <button
+                          type="button"
+                          className="property-card-open"
+                          aria-label={`Editar ${prop.code}`}
+                          onClick={() =>
+                            setFormulario({ tipo: "editar", imovel: prop })
+                          }
+                        >
+                          {prop.title}
+                        </button>
+                      ) : (
+                        prop.title
+                      )}
                     </h3>
                   </div>
 
@@ -281,11 +309,8 @@ export default function ImoveisPortfolioPage() {
             </div>
           ))}
           {externalListings.map((anuncio) => (
-            <a
+            <div
               key={anuncio.id}
-              href={anuncio.url}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
               className="rounded-2xl bg-white border border-dashed border-slate-300 overflow-hidden flex flex-col justify-between hover:border-slate-400 transition"
             >
               <div>
@@ -362,11 +387,34 @@ export default function ImoveisPortfolioPage() {
                     )}
                   </span>
                 </div>
-                <span className="button-secondary button-compact">
-                  Ver na origem
-                </span>
+                <div className="flex items-center gap-2">
+                  {canCreate && (
+                    <button
+                      type="button"
+                      className="button-secondary button-compact"
+                      aria-label={`Trazer ${anuncio.title} para a carteira`}
+                      onClick={() =>
+                        setFormulario({
+                          tipo: "importar",
+                          anuncio,
+                          fonte: fontePorId.get(anuncio.sourceId)?.name,
+                        })
+                      }
+                    >
+                      Trazer para a carteira
+                    </button>
+                  )}
+                  <a
+                    href={anuncio.url}
+                    target="_blank"
+                    rel="noopener noreferrer nofollow"
+                    className="button-secondary button-compact"
+                  >
+                    Ver na origem
+                  </a>
+                </div>
               </div>
-            </a>
+            </div>
           ))}
           </div>
         </>
@@ -381,12 +429,13 @@ export default function ImoveisPortfolioPage() {
         />
       )}
 
-      {showCreateModal && (
-        <PropertyCreateDialog
+      {formulario && (
+        <PropertyFormDialog
+          modo={formulario}
           bairros={bairros}
-          onClose={() => setShowCreateModal(false)}
-          onCreated={() => {
-            setShowCreateModal(false);
+          onClose={() => setFormulario(null)}
+          onSaved={() => {
+            setFormulario(null);
             void queryClient.invalidateQueries({
               queryKey: ["properties", currentTenant.id],
             });

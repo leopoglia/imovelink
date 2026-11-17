@@ -16,6 +16,7 @@ import {
   SEED_TENANTS,
   SEED_USERS,
 } from "@/server/seeds/seed-jaragua";
+import type { ExternalListing } from "@/types/domain";
 
 const originalSession = useTenantStore.getState();
 const fetchMock = vi.fn();
@@ -26,6 +27,25 @@ const json = (body: unknown, status = 200) =>
     status,
     headers: { "Content-Type": "application/json" },
   });
+
+const anuncio: ExternalListing = {
+  id: "22222222-2222-4222-8222-222222222222",
+  sourceId: "33333333-3333-4333-8333-333333333333",
+  tenantId: SEED_TENANTS[0].id,
+  url: "https://outrosite.com/imovel/9",
+  title: "Apartamento 2 quartos no Czerniewicz",
+  price: 420000,
+  neighborhood: "Czerniewicz",
+  city: "Jaraguá do Sul",
+  bedrooms: 2,
+  parkingSpots: 1,
+  areaTotal: 68,
+  imageUrl: null,
+  purpose: "SALE",
+  contentHash: "x",
+  firstSeenAt: "2026-11-10T10:00:00.000Z",
+  lastSeenAt: "2026-11-10T10:00:00.000Z",
+};
 
 const carteira = [
   { ...structuredClone(SEED_PROPERTIES[0]), addressNeighborhood: "Nereu Ramos" },
@@ -44,7 +64,12 @@ beforeEach(() => {
     Promise.resolve(
       init?.method === "POST"
         ? json({ property: { id: "novo" } }, 201)
-        : json({ properties: carteira, auditLogs: [] }),
+        : json({
+            properties: carteira,
+            auditLogs: [],
+            externalListings: [anuncio],
+            externalSources: [{ id: anuncio.sourceId, name: "Poder Imóveis", logoUrl: null }],
+          }),
     ),
   );
   vi.stubGlobal("fetch", fetchMock);
@@ -106,5 +131,66 @@ describe("Página de imóveis", () => {
           .length,
       ).toBe(2),
     );
+  });
+});
+
+describe("Edição e anúncios de outros sites", () => {
+  it("abre a edição ao clicar no card do imóvel", async () => {
+    abrirPagina();
+    const titulo = await screen.findByText(carteira[0].title);
+    fireEvent.click(titulo.closest(".rounded-2xl")!.querySelector("p")!);
+    const dialogo = screen.getByRole("dialog", { name: "Editar imóvel" });
+    expect(dialogo).toBeTruthy();
+    expect(
+      (screen.getByLabelText("Bairro *") as HTMLInputElement).value,
+    ).toBe("Nereu Ramos");
+  });
+
+  it("abre a edição pelo título, para quem usa o teclado", async () => {
+    abrirPagina();
+    await screen.findByText(carteira[0].title);
+    fireEvent.click(
+      screen.getByRole("button", { name: `Editar ${carteira[0].code}` }),
+    );
+    expect(screen.getByRole("dialog", { name: "Editar imóvel" })).toBeTruthy();
+  });
+
+  it("não abre a edição ao clicar em excluir", async () => {
+    abrirPagina();
+    await screen.findByText(carteira[0].title);
+    fireEvent.click(screen.getByTitle("Excluir imóvel"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("traz um anúncio de outro site para a carteira", async () => {
+    abrirPagina();
+    await screen.findByText(anuncio.title);
+    expect(
+      screen.getByRole("link", { name: "Ver na origem" }).getAttribute("href"),
+    ).toBe(anuncio.url);
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Trazer ${anuncio.title} para a carteira`,
+      }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Trazer para a minha carteira" }),
+    ).toBeTruthy();
+    expect(screen.getByText(/em Poder Imóveis/)).toBeTruthy();
+    expect(
+      (screen.getByLabelText("Valor de venda *") as HTMLInputElement).value,
+    ).toBe("420.000");
+  });
+
+  it("não mostra edição nem importação para quem não tem permissão", async () => {
+    useTenantStore.setState({
+      currentUser: { ...SEED_USERS[0], role: "VIEWER" as never },
+    });
+    abrirPagina();
+    await screen.findByText(anuncio.title);
+    expect(screen.queryByRole("button", { name: /Trazer/ })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: `Editar ${carteira[0].code}` }),
+    ).toBeNull();
   });
 });
