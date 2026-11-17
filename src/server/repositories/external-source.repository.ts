@@ -7,6 +7,12 @@ import {
   isPostgresConfigured,
 } from "@/server/database/postgres";
 
+/** Abaixo deste valor, o anúncio coletado é de aluguel, não de venda. */
+export const PRECO_MINIMO_DE_VENDA = 35_000;
+
+const pareceVenda = (anuncio: ExternalListing) =>
+  anuncio.price === null || anuncio.price >= PRECO_MINIMO_DE_VENDA;
+
 /**
  * Fontes externas e os anúncios indexados a partir delas.
  * Toda consulta é restrita ao tenant da sessão, como nos demais repositórios.
@@ -15,7 +21,7 @@ export class ExternalSourceRepository {
   async listByTenant(tenantId: string): Promise<ExternalSource[]> {
     if (isPostgresConfigured()) {
       const rows =
-        await getPostgres()`SELECT * FROM imovelink.external_sources WHERE tenant_id = ${tenantId} ORDER BY created_at DESC`;
+        await getPostgres()`SELECT * FROM imovelink.external_sources WHERE tenant_id = ${tenantId} AND (price IS NULL OR price >= ${PRECO_MINIMO_DE_VENDA}) ORDER BY created_at DESC`;
       return rows.map((row) => domainRecord<ExternalSource>(row));
     }
     return getDb()
@@ -146,6 +152,10 @@ export class ExternalSourceRepository {
     );
   }
 
+  /**
+   * Anúncios indexados da imobiliária. Os abaixo de R$ 35 mil ficam de fora:
+   * nos sites coletados, esses valores são de aluguel, não de venda.
+   */
   async listListings(
     tenantId: string,
     sourceId?: string,
@@ -153,7 +163,7 @@ export class ExternalSourceRepository {
     if (isPostgresConfigured()) {
       const sql = getPostgres();
       const rows = sourceId
-        ? await sql`SELECT * FROM imovelink.external_listings WHERE tenant_id = ${tenantId} AND source_id = ${sourceId} ORDER BY last_seen_at DESC`
+        ? await sql`SELECT * FROM imovelink.external_listings WHERE tenant_id = ${tenantId} AND source_id = ${sourceId} AND (price IS NULL OR price >= ${PRECO_MINIMO_DE_VENDA}) ORDER BY last_seen_at DESC`
         : await sql`SELECT * FROM imovelink.external_listings WHERE tenant_id = ${tenantId} ORDER BY last_seen_at DESC`;
       return rows.map((row) => domainRecord<ExternalListing>(row));
     }
@@ -161,7 +171,8 @@ export class ExternalSourceRepository {
       .externalListings.filter(
         (anuncio) =>
           anuncio.tenantId === tenantId &&
-          (!sourceId || anuncio.sourceId === sourceId),
+          (!sourceId || anuncio.sourceId === sourceId) &&
+          pareceVenda(anuncio),
       )
       .sort((a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt));
   }
