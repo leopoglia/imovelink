@@ -201,22 +201,34 @@ describe("Filtros da página de imóveis", () => {
     abrirPagina();
     await screen.findByText(anuncio.title);
     fireEvent.click(screen.getByRole("button", { name: "Filtros" }));
-    return screen.getByRole("region", { name: "Filtros de imóveis" });
+    return screen.getByRole("dialog", { name: "Filtros" });
   }
 
-  it("abre e fecha o painel pelo botão", async () => {
-    await abrirFiltros();
-    const botao = screen.getByRole("button", { name: "Filtros" });
-    expect(botao.getAttribute("aria-expanded")).toBe("true");
-    fireEvent.click(botao);
-    expect(screen.queryByRole("region", { name: "Filtros de imóveis" })).toBeNull();
+  it("abre em um modal e fecha pelo X, pelo Esc e clicando fora", async () => {
+    const dialogo = await abrirFiltros();
+    fireEvent.click(
+      within(dialogo).getByRole("button", { name: "Fechar filtros" }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Filtros" }));
+    fireEvent.keyDown(screen.getByLabelText("Buscar"), { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Filtros" }));
+    fireEvent.click(screen.getByRole("dialog").parentElement!);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("filtra pela busca e mostra quantos aparecem", async () => {
-    await abrirFiltros();
+  it("filtra pela busca, mantém o filtro ao fechar e mostra quantos aparecem", async () => {
+    const dialogo = await abrirFiltros();
     fireEvent.change(screen.getByLabelText("Buscar"), {
       target: { value: "Czerniewicz" },
     });
+    const ver = within(dialogo).getByRole("button", { name: "Ver 1 imóvel" });
+    fireEvent.click(ver);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByText(carteira[0].title)).toBeNull();
     expect(screen.getByText(anuncio.title)).toBeTruthy();
     expect(screen.getByRole("status").textContent).toBe(
@@ -225,25 +237,47 @@ describe("Filtros da página de imóveis", () => {
     expect(screen.getByLabelText("1 filtros ativos")).toBeTruthy();
   });
 
+  it("escolhe o mínimo de quartos pelos botões", async () => {
+    const dialogo = await abrirFiltros();
+    const tres = within(dialogo).getByRole("radio", { name: "3+" });
+    fireEvent.click(tres);
+    expect(tres.getAttribute("aria-checked")).toBe("true");
+    expect(
+      within(dialogo).getByRole("radio", { name: "Qualquer" }).getAttribute("aria-checked"),
+    ).toBe("false");
+    expect(within(dialogo).getByRole("button", { name: /^Ver \d+ imóve/ })).toBeTruthy();
+  });
+
   it("filtra pelo valor máximo com máscara em reais", async () => {
-    await abrirFiltros();
+    const dialogo = await abrirFiltros();
     const maximo = screen.getByLabelText("Valor máximo") as HTMLInputElement;
     fireEvent.change(maximo, { target: { value: "100000" } });
     expect(maximo.value).toBe("100.000");
-    expect(screen.getByText("Nenhum imóvel encontrado com esses filtros.")).toBeTruthy();
+    expect(within(dialogo).getByRole("button", { name: "Ver 0 imóveis" })).toBeTruthy();
+    expect(
+      screen.getByText("Nenhum imóvel encontrado com esses filtros."),
+    ).toBeTruthy();
   });
 
-  it("limpa os filtros pelo aviso de lista vazia", async () => {
-    await abrirFiltros();
+  it("limpa os filtros pelo modal e pelo aviso de lista vazia", async () => {
+    const dialogo = await abrirFiltros();
     fireEvent.change(screen.getByLabelText("Buscar"), {
       target: { value: "nada parecido" },
     });
+    fireEvent.click(within(dialogo).getByRole("button", { name: "Limpar" }));
+    expect((screen.getByLabelText("Buscar") as HTMLInputElement).value).toBe("");
+
+    fireEvent.change(screen.getByLabelText("Buscar"), {
+      target: { value: "nada parecido" },
+    });
+    fireEvent.click(within(dialogo).getByRole("button", { name: "Fechar filtros" }));
     const vazio = screen
       .getByText("Nenhum imóvel encontrado com esses filtros.")
       .closest("div")!;
-    fireEvent.click(within(vazio).getByRole("button", { name: "Limpar filtros" }));
+    fireEvent.click(
+      within(vazio).getByRole("button", { name: "Limpar filtros" }),
+    );
     expect(screen.getByText(carteira[0].title)).toBeTruthy();
     expect(screen.getByText(anuncio.title)).toBeTruthy();
-    expect((screen.getByLabelText("Buscar") as HTMLInputElement).value).toBe("");
   });
 });

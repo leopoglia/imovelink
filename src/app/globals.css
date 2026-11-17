@@ -2693,28 +2693,92 @@ textarea.field-control {
   font-size: 12px;
   font-weight: 600;
 }
-.property-filters {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px;
-  padding: 16px;
+.filters-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 72px 16px 16px;
+  background: rgb(15 23 42 / 0.3);
+}
+.filters-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(460px, 100%);
+  max-height: calc(100vh - 96px);
+  overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 16px;
   background: #fff;
+  box-shadow: 0 20px 40px rgb(15 23 42 / 0.16);
 }
-.property-filters-search {
+.filters-dialog-header,
+.filters-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+}
+.filters-dialog-header {
+  border-bottom: 1px solid var(--line);
+}
+.filters-dialog-header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.filters-dialog-footer {
+  border-top: 1px solid var(--line);
+}
+.filters-dialog-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 16px 18px;
+  overflow-y: auto;
+}
+.filters-span {
   grid-column: 1 / -1;
 }
-.property-filters-note {
-  grid-column: 1 / -1;
+.filters-note {
   margin: 0;
   color: var(--muted);
   font-size: 12px;
 }
-.property-filters-actions {
-  grid-column: 1 / -1;
+.filters-chips {
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.filters-chip {
+  min-width: 52px;
+  padding: 7px 12px;
+  border: 1px solid var(--field-border);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+.filters-chip[aria-checked="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.filters-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (max-width: 480px) {
+  .filters-overlay {
+    padding-top: 16px;
+  }
+  .filters-dialog-body {
+    grid-template-columns: 1fr;
+  }
 }
 .property-filters-empty {
   display: flex;

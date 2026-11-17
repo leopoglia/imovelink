@@ -21,7 +21,7 @@ import {
   PropertyFormDialog,
 } from "@/components/property-form-dialog";
 import { BAIRROS_JARAGUA } from "@/lib/geo";
-import { PropertyFiltersPanel } from "@/components/property-filters-panel";
+import { PropertyFiltersDialog } from "@/components/property-filters-dialog";
 import {
   FILTROS_PADRAO,
   FiltrosDeImoveis,
@@ -171,8 +171,7 @@ export default function ImoveisPortfolioPage() {
             <button
               type="button"
               onClick={() => setMostrarFiltros((aberto) => !aberto)}
-              aria-expanded={mostrarFiltros}
-              aria-controls="painel-filtros"
+              aria-haspopup="dialog"
               className="button-secondary"
             >
               <Filter aria-hidden="true" className="w-4 h-4" />
@@ -211,15 +210,6 @@ export default function ImoveisPortfolioPage() {
 
       {activeTab === "PORTFOLIO" && (
         <>
-          {mostrarFiltros && (
-            <div id="painel-filtros">
-              <PropertyFiltersPanel
-                filtros={filtros}
-                bairros={bairrosDisponiveis(properties, externalListings)}
-                onChange={setFiltros}
-              />
-            </div>
-          )}
           {filtrosAtivos > 0 ? (
             <p className="text-xs text-slate-500" role="status">
               Mostrando <strong>{totalVisivel}</strong> de{" "}
@@ -490,6 +480,16 @@ export default function ImoveisPortfolioPage() {
           isLoading={isPending}
           isError={isError}
           onRetry={() => void refetch()}
+        />
+      )}
+
+      {mostrarFiltros && (
+        <PropertyFiltersDialog
+          filtros={filtros}
+          bairros={bairrosDisponiveis(properties, externalListings)}
+          resultado={totalVisivel}
+          onChange={setFiltros}
+          onClose={() => setMostrarFiltros(false)}
         />
       )}
 
