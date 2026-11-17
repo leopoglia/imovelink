@@ -244,6 +244,34 @@ describe("Quadro de contatos", () => {
     await waitFor(() => expect(chamadas("/api/leads")).toHaveLength(1));
     expect(chamadas("/api/leads/")).toHaveLength(0);
   });
+
+  it("abre a edição ao clicar em qualquer parte do cartão", async () => {
+    render(React.createElement(ContatosPage));
+    const cartao = await screen.findByRole("article", { name: "Ana Souza" });
+    expect(within(cartao).queryByText("Editar")).toBeNull();
+    fireEvent.click(within(cartao).getByText("Casa com piscina até 950 mil"));
+    const dialogo = await screen.findByRole("dialog");
+    expect(dialogo.hasAttribute("open")).toBe(true);
+    expect(
+      (within(dialogo).getByLabelText("Nome") as HTMLInputElement).value,
+    ).toBe("Ana Souza");
+  });
+
+  it("não abre a edição ao clicar no telefone ou em Sugerir imóveis", async () => {
+    render(React.createElement(ContatosPage));
+    const cartao = await screen.findByRole("article", { name: "Ana Souza" });
+    const telefone = within(cartao).getByRole("link", {
+      name: "(47) 99999-0001",
+    });
+    // O jsdom não sabe abrir links tel:; o clique só precisa chegar ao cartão.
+    telefone.addEventListener("click", (evento) => evento.preventDefault());
+    fireEvent.click(telefone);
+    fireEvent.click(
+      within(cartao).getByRole("button", { name: "Sugerir imóveis" }),
+    );
+    await screen.findByRole("list", { name: "Imóveis sugeridos para Ana Souza" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 });
 
 describe("Imóveis sugeridos", () => {

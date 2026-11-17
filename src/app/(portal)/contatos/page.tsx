@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AreaSearch, EditPencil, Phone, RefreshDouble } from "iconoir-react";
+import { AreaSearch, Phone, RefreshDouble } from "iconoir-react";
 import { apiFetch } from "@/lib/api";
 import { hasPermission } from "@/lib/auth/rbac";
 import { LEAD_STAGES, LEAD_STAGE_LABELS } from "@/lib/lead-stages";
@@ -345,9 +345,27 @@ export default function ContatosPage() {
                             onDragStart={(event) =>
                               event.dataTransfer.setData("text/plain", lead.id)
                             }
+                            // Clicar no cartão abre a edição; o telefone e os
+                            // botões do cartão mantêm a própria ação.
+                            onClick={(event) => {
+                              const alvo = event.target as HTMLElement;
+                              if (alvo.closest("a, button")) return;
+                              if (window.getSelection()?.toString()) return;
+                              abrirEdicao(lead);
+                            }}
                           >
                             <div className="lead-card-top">
-                              <h3>{lead.name}</h3>
+                              <h3>
+                                {/* Pelo teclado, o nome é o botão que abre a edição. */}
+                                <button
+                                  type="button"
+                                  className="lead-card-open"
+                                  aria-label={`Editar ${lead.name}`}
+                                  onClick={() => abrirEdicao(lead)}
+                                >
+                                  {lead.name}
+                                </button>
+                              </h3>
                               <span
                                 className="lead-score"
                                 data-temperature={lead.aiTemperature}
@@ -370,21 +388,8 @@ export default function ContatosPage() {
                             <p className="lead-meta">
                               Recebido em {formatDate(lead.createdAt)}
                             </p>
-                            <div className="lead-actions">
-                              <button
-                                type="button"
-                                className="button-secondary button-compact"
-                                aria-label={`Editar ${lead.name}`}
-                                onClick={() => abrirEdicao(lead)}
-                              >
-                                <EditPencil
-                                  width={16}
-                                  height={16}
-                                  aria-hidden="true"
-                                />
-                                Editar
-                              </button>
-                              {!encerrado && sugestao?.estado !== "pronto" && (
+                            {!encerrado && sugestao?.estado !== "pronto" && (
+                              <div className="lead-actions">
                                 <button
                                   type="button"
                                   className="button-secondary button-compact"
@@ -400,8 +405,8 @@ export default function ContatosPage() {
                                     ? "Buscando…"
                                     : "Sugerir imóveis"}
                                 </button>
-                              )}
-                            </div>
+                              </div>
+                            )}
                             {!encerrado && sugestao?.estado === "erro" && (
                               <p className="lead-suggestion-error" role="alert">
                                 {sugestao.mensagem}

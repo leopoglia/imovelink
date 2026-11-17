@@ -2452,10 +2452,28 @@ textarea.field-control {
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 10px;
-  cursor: grab;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.lead-card:hover {
+  border-color: var(--accent);
 }
 .lead-card:active {
   cursor: grabbing;
+}
+.lead-card-open {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lead-card-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 .lead-card-top {
   display: flex;
