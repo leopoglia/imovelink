@@ -21,7 +21,7 @@ export class ExternalSourceRepository {
   async listByTenant(tenantId: string): Promise<ExternalSource[]> {
     if (isPostgresConfigured()) {
       const rows =
-        await getPostgres()`SELECT * FROM imovelink.external_sources WHERE tenant_id = ${tenantId} AND (price IS NULL OR price >= ${PRECO_MINIMO_DE_VENDA}) ORDER BY created_at DESC`;
+        await getPostgres()`SELECT * FROM imovelink.external_sources WHERE tenant_id = ${tenantId} ORDER BY created_at DESC`;
       return rows.map((row) => domainRecord<ExternalSource>(row));
     }
     return getDb()
@@ -164,7 +164,7 @@ export class ExternalSourceRepository {
       const sql = getPostgres();
       const rows = sourceId
         ? await sql`SELECT * FROM imovelink.external_listings WHERE tenant_id = ${tenantId} AND source_id = ${sourceId} AND (price IS NULL OR price >= ${PRECO_MINIMO_DE_VENDA}) ORDER BY last_seen_at DESC`
-        : await sql`SELECT * FROM imovelink.external_listings WHERE tenant_id = ${tenantId} ORDER BY last_seen_at DESC`;
+        : await sql`SELECT * FROM imovelink.external_listings WHERE tenant_id = ${tenantId} AND (price IS NULL OR price >= ${PRECO_MINIMO_DE_VENDA}) ORDER BY last_seen_at DESC`;
       return rows.map((row) => domainRecord<ExternalListing>(row));
     }
     return getDb()

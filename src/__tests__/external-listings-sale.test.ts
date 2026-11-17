@@ -4,11 +4,15 @@ import {
   externalSourceRepository,
 } from "@/server/repositories/external-source.repository";
 import { getDb } from "@/server/repositories/memory-store";
+import {
+  getPostgres,
+  isPostgresConfigured,
+} from "@/server/database/postgres";
 import type { ExternalListing } from "@/types/domain";
 
 vi.mock("@/server/repositories/memory-store", () => ({ getDb: vi.fn() }));
 vi.mock("@/server/database/postgres", () => ({
-  isPostgresConfigured: () => false,
+  isPostgresConfigured: vi.fn(() => false),
   getPostgres: vi.fn(),
   databaseRecord: vi.fn(),
   domainRecord: vi.fn(),
@@ -37,6 +41,7 @@ const anuncio = (id: string, price: number | null): ExternalListing => ({
 });
 
 beforeEach(() => {
+  vi.mocked(isPostgresConfigured).mockReturnValue(false);
   vi.mocked(getDb).mockReturnValue({
     externalListings: [
       anuncio("aluguel", 2500),
@@ -66,5 +71,35 @@ describe("Anúncios de outros sites", () => {
 
   it("mantém todos os anúncios nas métricas de coleta", async () => {
     expect(await externalSourceRepository.listAllListings()).toHaveLength(5);
+  });
+});
+
+describe("Consultas no PostgreSQL", () => {
+  // Guarda o texto de cada consulta, para conferir em que tabela o corte de
+  // preço foi aplicado.
+  const consultas: string[] = [];
+  beforeEach(() => {
+    consultas.length = 0;
+    vi.mocked(isPostgresConfigured).mockReturnValue(true);
+    vi.mocked(getPostgres).mockReturnValue(((partes: TemplateStringsArray) => {
+      consultas.push(partes.join("?"));
+      return Promise.resolve([]);
+    }) as never);
+  });
+
+  it("aplica o corte de preço aos anúncios, com e sem fonte", async () => {
+    await externalSourceRepository.listListings(TENANT);
+    await externalSourceRepository.listListings(TENANT, FONTE);
+    expect(consultas).toHaveLength(2);
+    for (const consulta of consultas) {
+      expect(consulta).toContain("imovelink.external_listings");
+      expect(consulta).toContain("price IS NULL OR price >= ?");
+    }
+  });
+
+  it("não aplica o corte à lista de fontes, que não tem preço", async () => {
+    await externalSourceRepository.listByTenant(TENANT);
+    expect(consultas[0]).toContain("imovelink.external_sources");
+    expect(consultas[0]).not.toContain("price");
   });
 });
