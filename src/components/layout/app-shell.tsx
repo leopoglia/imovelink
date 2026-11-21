@@ -27,6 +27,7 @@ const NAV_ITEMS = [
   { href: "/imoveis", label: "Imóveis", icon: City },
   { href: "/busca-ia", label: "Busca inteligente", icon: AreaSearch },
   { href: "/contatos", label: "Contatos", icon: Group },
+  { href: "/minha-vitrine", label: "Vitrine", icon: ShopWindow },
   {
     href: "/crawler",
     label: "Crawler",
@@ -121,10 +122,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 href={`/vitrine/${currentTenant.slug}`}
                 className="nav-link"
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => setMenuOpen(false)}
               >
-                <ShopWindow aria-hidden="true" />
-                Vitrine de imóveis
+                <Internet aria-hidden="true" />
+                Ver vitrine pública
                 <ArrowUpRight
                   aria-hidden="true"
                   className="nav-external"
