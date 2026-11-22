@@ -28,7 +28,9 @@ function preco(valor: number) {
 function chaveDoConteudo(valores: ConteudoDaVitrine) {
   return JSON.stringify({
     ...valores,
-    hiddenPropertyIds: [...valores.hiddenPropertyIds].sort(),
+    hiddenPropertyIds: [...valores.hiddenPropertyIds].sort((a, b) =>
+      a.localeCompare(b),
+    ),
   });
 }
 
@@ -416,8 +418,8 @@ export default function MinhaVitrinePage() {
             type="button"
             className="button-secondary"
             onClick={() => {
-              configuracoes.refetch();
-              imoveis.refetch();
+              void configuracoes.refetch();
+              void imoveis.refetch();
             }}
           >
             Tentar novamente
