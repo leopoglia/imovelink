@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, OpenNewWindow } from "iconoir-react";
@@ -9,7 +9,6 @@ import { hasPermission } from "@/lib/auth/rbac";
 import { fetchSettings, settingsQueryKey } from "@/lib/settings";
 import {
   conteudoDaVitrine,
-  corDoTextoSobre,
   podeAparecerNaVitrine,
   type ConteudoDaVitrine,
 } from "@/lib/vitrine";
@@ -34,89 +33,39 @@ function chaveDoConteudo(valores: ConteudoDaVitrine) {
   });
 }
 
-function LinkDaVitrine({ slug }: { slug: string }) {
+function AcoesDaVitrine({ slug }: { slug: string }) {
   const caminho = `/vitrine/${slug}`;
-  const [origem, setOrigem] = useState("");
   const [copiado, setCopiado] = useState(false);
-  useEffect(() => setOrigem(window.location.origin), []);
-  const endereco = `${origem}${caminho}`;
 
   return (
-    <section className="vitrine-editor-link" aria-label="Link da vitrine">
-      <div>
-        <strong>Sua vitrine já está no ar</strong>
-        <p>
-          Toda imobiliária tem uma vitrine pública. Qualquer pessoa abre pelo
-          link, sem login. Divulgue nas redes sociais e no Google.
-        </p>
-        <code>{endereco}</code>
-      </div>
-      <div className="vitrine-editor-link-acoes">
-        <button
-          type="button"
-          className="button-secondary"
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(endereco);
-              setCopiado(true);
-              window.setTimeout(() => setCopiado(false), 2000);
-            } catch {
-              setCopiado(false);
-            }
-          }}
-        >
-          <Copy aria-hidden="true" width={16} height={16} />
-          {copiado ? "Link copiado" : "Copiar link"}
-        </button>
-        <a
-          href={caminho}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="button-primary"
-        >
-          <OpenNewWindow aria-hidden="true" width={16} height={16} />
-          Abrir vitrine
-        </a>
-      </div>
-    </section>
-  );
-}
-
-function Previa({
-  nome,
-  cidade,
-  valores,
-}: {
-  nome: string;
-  cidade: string;
-  valores: ConteudoDaVitrine;
-}) {
-  const capa = valores.coverImageUrl.trim();
-  return (
-    <div
-      className={`vitrine-previa${capa ? " tem-foto" : ""}`}
-      style={
-        {
-          "--vitrine-cor": valores.primaryColor,
-          "--vitrine-cor-texto": corDoTextoSobre(valores.primaryColor),
-        } as React.CSSProperties
-      }
-    >
-      {capa && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={capa} alt="" className="vitrine-previa-foto" />
-      )}
-      <div className="vitrine-previa-conteudo">
-        <span className="vitrine-previa-marca">
-          <span className="vitrine-sigla" aria-hidden="true">
-            {valores.logoText || nome.slice(0, 2).toUpperCase()}
-          </span>
-          {nome}
-        </span>
-        <strong>{valores.headline || `Imóveis à venda em ${cidade}`}</strong>
-        {valores.tagline && <span>{valores.tagline}</span>}
-        <span className="vitrine-previa-botao">Ver imóveis</span>
-      </div>
+    <div className="vitrine-editor-acoes">
+      <button
+        type="button"
+        className="button-secondary"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(
+              `${window.location.origin}${caminho}`,
+            );
+            setCopiado(true);
+            window.setTimeout(() => setCopiado(false), 2000);
+          } catch {
+            setCopiado(false);
+          }
+        }}
+      >
+        <Copy aria-hidden="true" width={16} height={16} />
+        {copiado ? "Link copiado" : "Copiar link"}
+      </button>
+      <a
+        href={caminho}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="button-primary"
+      >
+        <OpenNewWindow aria-hidden="true" width={16} height={16} />
+        Abrir vitrine
+      </a>
     </div>
   );
 }
@@ -185,161 +134,151 @@ function EditorDaVitrine({
         if (canEdit && dirty && !mutation.isPending) mutation.mutate();
       }}
     >
-      <div className="vitrine-editor-colunas">
-        <fieldset
-          className="vitrine-editor-campos"
-          disabled={!canEdit || mutation.isPending}
-        >
-          <div className="vitrine-editor-bloco">
-            <h2>Apresentação</h2>
-            <div className="settings-field settings-field-full">
-              <label htmlFor="vitrine-headline">Título</label>
-              <input
-                id="vitrine-headline"
-                className="field-control"
-                maxLength={90}
-                placeholder={`Imóveis à venda em ${data.tenant.city}`}
-                value={valores.headline}
-                onChange={(e) => alterar("headline", e.target.value)}
-              />
-            </div>
-            <div className="settings-field settings-field-full">
-              <label htmlFor="vitrine-tagline">Subtítulo</label>
-              <input
-                id="vitrine-tagline"
-                className="field-control"
-                maxLength={160}
-                value={valores.tagline}
-                onChange={(e) => alterar("tagline", e.target.value)}
-              />
-            </div>
-            <div className="settings-field settings-field-full">
-              <label htmlFor="vitrine-about">Sobre a imobiliária</label>
-              <textarea
-                id="vitrine-about"
-                className="field-control"
-                rows={4}
-                maxLength={800}
-                placeholder="Conte há quanto tempo atuam, em que bairros e como atendem."
-                value={valores.about}
-                onChange={(e) => alterar("about", e.target.value)}
-              />
-            </div>
-            <div className="settings-field settings-field-full">
-              <label htmlFor="vitrine-capa">Link da foto de capa</label>
-              <input
-                id="vitrine-capa"
-                type="url"
-                className="field-control"
-                maxLength={1000}
-                placeholder="https://"
-                value={valores.coverImageUrl}
-                onChange={(e) => alterar("coverImageUrl", e.target.value)}
-              />
-              <p className="field-hint">
-                Sem foto, a capa usa a cor da imobiliária.
-              </p>
-            </div>
+      <fieldset
+        className="vitrine-editor-campos"
+        disabled={!canEdit || mutation.isPending}
+      >
+        <div className="vitrine-editor-bloco">
+          <h2>Apresentação</h2>
+          <div className="settings-field settings-field-full">
+            <label htmlFor="vitrine-headline">Título</label>
+            <input
+              id="vitrine-headline"
+              className="field-control"
+              maxLength={90}
+              placeholder={`Imóveis à venda em ${data.tenant.city}`}
+              value={valores.headline}
+              onChange={(e) => alterar("headline", e.target.value)}
+            />
           </div>
+          <div className="settings-field settings-field-full">
+            <label htmlFor="vitrine-tagline">Subtítulo</label>
+            <input
+              id="vitrine-tagline"
+              className="field-control"
+              maxLength={160}
+              value={valores.tagline}
+              onChange={(e) => alterar("tagline", e.target.value)}
+            />
+          </div>
+          <div className="settings-field settings-field-full">
+            <label htmlFor="vitrine-about">Sobre a imobiliária</label>
+            <textarea
+              id="vitrine-about"
+              className="field-control"
+              rows={4}
+              maxLength={800}
+              placeholder="Conte há quanto tempo atuam, em que bairros e como atendem."
+              value={valores.about}
+              onChange={(e) => alterar("about", e.target.value)}
+            />
+          </div>
+          <div className="settings-field settings-field-full">
+            <label htmlFor="vitrine-capa">Link da foto de capa</label>
+            <input
+              id="vitrine-capa"
+              type="url"
+              className="field-control"
+              maxLength={1000}
+              placeholder="https://"
+              value={valores.coverImageUrl}
+              onChange={(e) => alterar("coverImageUrl", e.target.value)}
+            />
+            <p className="field-hint">
+              Sem foto, a capa usa a cor da imobiliária.
+            </p>
+          </div>
+        </div>
 
-          <div className="vitrine-editor-bloco">
-            <h2>Marca</h2>
-            <div className="vitrine-editor-linha">
-              <div className="settings-field">
-                <label htmlFor="vitrine-sigla">Sigla</label>
+        <div className="vitrine-editor-bloco">
+          <h2>Marca</h2>
+          <div className="vitrine-editor-linha">
+            <div className="settings-field">
+              <label htmlFor="vitrine-sigla">Sigla</label>
+              <input
+                id="vitrine-sigla"
+                className="field-control"
+                maxLength={3}
+                value={valores.logoText}
+                onChange={(e) =>
+                  alterar("logoText", e.target.value.toUpperCase())
+                }
+              />
+            </div>
+            <div className="settings-field">
+              <label htmlFor="vitrine-cor">Cor principal</label>
+              <div className="vitrine-editor-cor">
                 <input
-                  id="vitrine-sigla"
-                  className="field-control"
-                  maxLength={3}
-                  value={valores.logoText}
+                  id="vitrine-cor"
+                  type="color"
+                  value={valores.primaryColor}
                   onChange={(e) =>
-                    alterar("logoText", e.target.value.toUpperCase())
+                    alterar("primaryColor", e.target.value.toUpperCase())
                   }
                 />
-              </div>
-              <div className="settings-field">
-                <label htmlFor="vitrine-cor">Cor principal</label>
-                <div className="vitrine-editor-cor">
-                  <input
-                    id="vitrine-cor"
-                    type="color"
-                    value={valores.primaryColor}
-                    onChange={(e) =>
-                      alterar("primaryColor", e.target.value.toUpperCase())
-                    }
-                  />
-                  <span>{valores.primaryColor}</span>
-                </div>
+                <span>{valores.primaryColor}</span>
               </div>
             </div>
-            <p className="field-hint">
-              Telefone, e-mail e endereço ficam em{" "}
-              <Link href="/configuracoes">Configurações</Link>.
-            </p>
           </div>
+          <p className="field-hint">
+            Telefone, e-mail e endereço ficam em{" "}
+            <Link href="/configuracoes">Configurações</Link>.
+          </p>
+        </div>
 
-          <div className="vitrine-editor-bloco">
-            <div className="vitrine-editor-bloco-topo">
-              <h2>Imóveis na vitrine</h2>
-              <span>
-                {aparecem.length} de {publicaveis.length} aparecem
-              </span>
-            </div>
-            <p className="field-hint">
-              Só imóveis disponíveis ou reservados podem aparecer. Vendidos e
-              inativos saem sozinhos.
+        <div className="vitrine-editor-bloco">
+          <div className="vitrine-editor-bloco-topo">
+            <h2>Imóveis na vitrine</h2>
+            <span>
+              {aparecem.length} de {publicaveis.length} aparecem
+            </span>
+          </div>
+          <p className="field-hint">
+            Só imóveis disponíveis ou reservados podem aparecer. Vendidos e
+            inativos saem sozinhos.
+          </p>
+          {publicaveis.length === 0 ? (
+            <p className="settings-role">
+              Nenhum imóvel disponível. Cadastre em{" "}
+              <Link href="/imoveis">Imóveis</Link>.
             </p>
-            {publicaveis.length === 0 ? (
-              <p className="settings-role">
-                Nenhum imóvel disponível. Cadastre em{" "}
-                <Link href="/imoveis">Imóveis</Link>.
-              </p>
-            ) : (
-              <ul className="vitrine-editor-imoveis">
-                {publicaveis.map((imovel) => {
-                  const mostrar = !escondidos.has(imovel.id);
-                  return (
-                    <li key={imovel.id}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={mostrar}
-                          onChange={(e) =>
-                            alternarImovel(imovel.id, e.target.checked)
-                          }
-                        />
-                        {imovel.images[0] ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={imovel.images[0]} alt="" />
-                        ) : (
-                          <span className="vitrine-editor-sem-foto" />
-                        )}
-                        <span className="vitrine-editor-imovel-texto">
-                          <strong>{imovel.title}</strong>
-                          <span>
-                            {imovel.code} · {imovel.addressNeighborhood} ·{" "}
-                            {preco(imovel.price)}
-                            {imovel.status === "RESERVED" && " · Reservado"}
-                          </span>
+          ) : (
+            <ul className="vitrine-editor-imoveis">
+              {publicaveis.map((imovel) => {
+                const mostrar = !escondidos.has(imovel.id);
+                return (
+                  <li key={imovel.id}>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={mostrar}
+                        onChange={(e) =>
+                          alternarImovel(imovel.id, e.target.checked)
+                        }
+                      />
+                      {imovel.images[0] ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={imovel.images[0]} alt="" />
+                      ) : (
+                        <span className="vitrine-editor-sem-foto" />
+                      )}
+                      <span className="vitrine-editor-imovel-texto">
+                        <strong>{imovel.title}</strong>
+                        <span>
+                          {imovel.code} · {imovel.addressNeighborhood} ·{" "}
+                          {preco(imovel.price)}
+                          {imovel.status === "RESERVED" && " · Reservado"}
                         </span>
-                      </label>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        </fieldset>
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </fieldset>
 
-        <aside className="vitrine-editor-lateral" aria-label="Prévia da vitrine">
-          <span className="vitrine-editor-lateral-titulo">Prévia</span>
-          <Previa
-            nome={data.tenant.name}
-            cidade={data.tenant.city}
-            valores={valores}
-          />
-        </aside>
-      </div>
 
       {!canEdit && (
         <p className="settings-role">Somente gestores podem editar a vitrine.</p>
@@ -405,8 +344,8 @@ export default function MinhaVitrinePage() {
     <div className="vitrine-editor-pagina">
       <div className="page-heading">
         <h1>Vitrine</h1>
+        {currentTenant.slug && <AcoesDaVitrine slug={currentTenant.slug} />}
       </div>
-      {currentTenant.slug && <LinkDaVitrine slug={currentTenant.slug} />}
       {configuracoes.isPending || imoveis.isPending ? (
         <p className="settings-role" role="status">
           Carregando a vitrine…

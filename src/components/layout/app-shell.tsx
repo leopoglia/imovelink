@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ArrowUpRight,
   Building,
   City,
   Group,
@@ -117,26 +116,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-          <div className="nav-secondary">
-            <nav className="sidebar-nav" aria-label="Imobiliária">
-              <Link
-                href={`/vitrine/${currentTenant.slug}`}
-                className="nav-link"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setMenuOpen(false)}
-              >
-                <Internet aria-hidden="true" />
-                Ver vitrine pública
-                <ArrowUpRight
-                  aria-hidden="true"
-                  className="nav-external"
-                  width={14}
-                  height={14}
-                />
-              </Link>
-            </nav>
-          </div>
         </div>
       </aside>
       <div className="app-main">

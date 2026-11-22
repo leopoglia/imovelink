@@ -77,9 +77,8 @@ afterEach(() => {
 });
 
 describe("Editor da vitrine", () => {
-  it("mostra o link público e só os imóveis que podem ir para a vitrine", () => {
+  it("abre a vitrine pública e lista só os imóveis que podem ir para ela", () => {
     abrir();
-    expect(screen.getByText(`/vitrine/${settings.tenant.slug}`, { exact: false })).toBeTruthy();
     expect(
       screen.getByRole("link", { name: "Abrir vitrine" }).getAttribute("href"),
     ).toBe(`/vitrine/${settings.tenant.slug}`);
@@ -89,15 +88,27 @@ describe("Editor da vitrine", () => {
     expect(screen.getByText("2 de 2 aparecem")).toBeTruthy();
   });
 
-  it("atualiza a prévia enquanto o gestor digita", () => {
+  it("não mostra prévia nem o endereço escrito na tela", () => {
     abrir();
-    fireEvent.change(screen.getByLabelText("Título"), {
-      target: { value: "Seu próximo endereço" },
-    });
-    const previa = screen.getByRole("complementary", {
-      name: "Prévia da vitrine",
-    });
-    expect(previa.textContent).toContain("Seu próximo endereço");
+    expect(
+      screen.queryByRole("complementary", { name: "Prévia da vitrine" }),
+    ).toBeNull();
+    expect(screen.queryByText(/\/vitrine\//)).toBeNull();
+  });
+
+  it("copia o endereço completo da vitrine", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { ...navigator, clipboard: { writeText } });
+    abrir();
+    fireEvent.click(screen.getByRole("button", { name: "Copiar link" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Link copiado" }),
+      ).toBeTruthy(),
+    );
+    expect(writeText).toHaveBeenCalledWith(
+      `${window.location.origin}/vitrine/${settings.tenant.slug}`,
+    );
   });
 
   it("salva textos e imóveis escondidos na seção vitrine", async () => {
