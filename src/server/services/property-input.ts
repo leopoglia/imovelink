@@ -40,6 +40,14 @@ export const propertyInput = z.object({
     .max(30)
     .default([]),
   featured: z.boolean().default(false),
+  // Anúncio de outro site de onde o imóvel foi trazido para a carteira.
+  sourceListingUrl: z
+    .string()
+    .trim()
+    .max(2000)
+    .url()
+    .refine((value) => /^https?:\/\//.test(value))
+    .optional(),
 });
 export const propertyUpdates = propertyInput
   .partial()

@@ -69,6 +69,10 @@ export async function descobrirPaginacao(
 /**
  * Percorre as páginas aplicando o mapa, parando quando a página não traz
  * nenhum anúncio inédito ou quando o teto é atingido.
+ *
+ * `completa` diz se a listagem foi lida até o fim. Ela é falsa quando o teto
+ * de páginas acabou antes da listagem ou quando uma página falhou: nesses
+ * casos, um anúncio ausente pode só não ter sido lido.
  */
 export async function percorrerPaginas(
   template: string | null,
@@ -87,9 +91,11 @@ export async function percorrerPaginas(
   ))
     vistas.set(anuncio.url, anuncio);
 
-  if (!template) return { anuncios: [...vistas.values()], paginas: 1 };
+  if (!template)
+    return { anuncios: [...vistas.values()], paginas: 1, completa: true };
 
   let paginas = 1;
+  let completa = false;
   for (let numero = 2; numero <= maxPaginas; numero++) {
     if (intervaloMs && aguardar) await aguardar(intervaloMs);
     const alvo = montarUrlPagina(template, numero);
@@ -99,14 +105,21 @@ export async function percorrerPaginas(
     } catch {
       break;
     }
-    if (!html) break;
+    // Página inexistente: a listagem acabou antes do teto.
+    if (!html) {
+      completa = true;
+      break;
+    }
 
     const anuncios = extrairAnuncios(html, mapa, alvo);
     const inéditos = anuncios.filter((anuncio) => !vistas.has(anuncio.url));
     // Repetir a mesma página é o sinal de que a listagem acabou.
-    if (!inéditos.length) break;
+    if (!inéditos.length) {
+      completa = true;
+      break;
+    }
     for (const anuncio of inéditos) vistas.set(anuncio.url, anuncio);
     paginas = numero;
   }
-  return { anuncios: [...vistas.values()], paginas };
+  return { anuncios: [...vistas.values()], paginas, completa };
 }

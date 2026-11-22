@@ -234,3 +234,65 @@ describe("Gravação de anúncios coletados", () => {
     ).toHaveLength(1);
   });
 });
+
+describe("Anúncios que saíram da origem", () => {
+  const A = "https://www.poderimoveis.com/imovel/a";
+  const B = "https://www.poderimoveis.com/imovel/b";
+  const C = "https://www.poderimoveis.com/imovel/c";
+
+  beforeEach(async () => {
+    await externalSourceRepository.upsertListings([
+      anuncio({ id: "a", url: A }),
+      anuncio({ id: "b", url: B }),
+      anuncio({ id: "c", url: C, sourceId: "fonte-2" }),
+    ]);
+  });
+
+  it("marca só os anúncios da fonte que não foram vistos", async () => {
+    const marcados = await externalSourceRepository.marcarSaidos(
+      TENANT,
+      "fonte-1",
+      [A],
+    );
+    expect(marcados).toBe(1);
+    expect(db.externalListings.find((l) => l.url === B)?.removedAt).toBeTruthy();
+    expect(db.externalListings.find((l) => l.url === A)?.removedAt).toBeFalsy();
+    // Outra fonte não é afetada.
+    expect(db.externalListings.find((l) => l.url === C)?.removedAt).toBeFalsy();
+  });
+
+  it("não marca de novo o que já tinha saído", async () => {
+    await externalSourceRepository.marcarSaidos(TENANT, "fonte-1", [A]);
+    expect(
+      await externalSourceRepository.marcarSaidos(TENANT, "fonte-1", [A]),
+    ).toBe(0);
+  });
+
+  it("não mexe nos anúncios de outra imobiliária", async () => {
+    expect(
+      await externalSourceRepository.marcarSaidos(OUTRO_TENANT, "fonte-1", []),
+    ).toBe(0);
+    expect(db.externalListings.every((l) => !l.removedAt)).toBe(true);
+  });
+
+  it("esconde da listagem o que saiu e informa os endereços", async () => {
+    await externalSourceRepository.marcarSaidos(TENANT, "fonte-1", [A]);
+    const lista = await externalSourceRepository.listListings(TENANT);
+    expect(lista.map((l) => l.url).sort()).toEqual([A, C]);
+    expect([...(await externalSourceRepository.urlsQueSairam(TENANT))]).toEqual([
+      B,
+    ]);
+    expect(
+      (await externalSourceRepository.urlsQueSairam(OUTRO_TENANT)).size,
+    ).toBe(0);
+  });
+
+  it("tira a marca quando o anúncio volta a aparecer", async () => {
+    await externalSourceRepository.marcarSaidos(TENANT, "fonte-1", [A]);
+    await externalSourceRepository.upsertListings([
+      anuncio({ id: "b2", url: B }),
+    ]);
+    expect(db.externalListings.find((l) => l.url === B)?.removedAt).toBeNull();
+    expect((await externalSourceRepository.urlsQueSairam(TENANT)).size).toBe(0);
+  });
+});

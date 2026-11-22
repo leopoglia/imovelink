@@ -10,6 +10,7 @@ import {
   Plus,
   ShieldAlert,
   Trash,
+  WarningTriangle,
 } from "iconoir-react";
 import { useTenantStore } from "@/store/tenant-store";
 import { apiFetch } from "@/lib/api";
@@ -322,6 +323,33 @@ export default function ImoveisPortfolioPage() {
                       )}
                     </h3>
                   </div>
+
+                  {prop.sourceListingRemoved &&
+                    (prop.status === "AVAILABLE" ||
+                      prop.status === "RESERVED") && (
+                      <p className="property-origin-alert" role="note">
+                        <WarningTriangle
+                          aria-hidden="true"
+                          width={15}
+                          height={15}
+                        />
+                        <span>
+                          Saiu do site de origem. Confira se foi vendido.
+                          {prop.sourceListingUrl && (
+                            <>
+                              {" "}
+                              <a
+                                href={prop.sourceListingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer nofollow"
+                              >
+                                Ver anúncio
+                              </a>
+                            </>
+                          )}
+                        </span>
+                      </p>
+                    )}
 
                   <p className="text-xs text-slate-500 line-clamp-2">
                     {prop.description}

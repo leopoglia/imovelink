@@ -41,6 +41,7 @@ export interface CreatePropertyInput {
   amenities: string[];
   images?: string[];
   featured?: boolean;
+  sourceListingUrl?: string;
 }
 
 export interface UpdatePropertyInput {
@@ -120,6 +121,10 @@ export class PropertyService {
         featured: Boolean(input.featured),
         createdAt: now,
         updatedAt: now,
+        // Só os imóveis trazidos de outro site levam a coluna; os demais não a enviam.
+        ...(input.sourceListingUrl
+          ? { sourceListingUrl: input.sourceListingUrl }
+          : {}),
       };
 
       await propertyRepository.create(newProperty);

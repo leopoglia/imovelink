@@ -111,6 +111,13 @@ export interface Property {
   featured: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Endereço do anúncio de outro site de onde o imóvel foi trazido. */
+  sourceListingUrl?: string | null;
+  /**
+   * Calculado pela API, não gravado: o anúncio de origem deixou de aparecer
+   * na última coleta completa da fonte.
+   */
+  sourceListingRemoved?: boolean;
 }
 
 export interface PropertyAuditLog {
@@ -248,6 +255,8 @@ export interface ExternalListing {
   contentHash: string;
   firstSeenAt: string;
   lastSeenAt: string;
+  /** Quando deixou de aparecer numa coleta completa; nulo enquanto está no ar. */
+  removedAt?: string | null;
 }
 
 /**

@@ -150,3 +150,41 @@ describe("Percurso das páginas", () => {
     expect(r.anuncios).toHaveLength(3);
   });
 });
+
+describe("Leitura completa da listagem", () => {
+  const primeira = { url: BASE, html: pagina("a", "b") };
+  const TEMPLATE = "https://exemplo.com/imoveis/venda-pagina-{n}";
+
+  it("é completa quando a listagem acaba antes do teto", async () => {
+    const porPagina = vi.fn(async (alvo: string) =>
+      alvo.endsWith("-2") ? pagina("c") : null,
+    );
+    expect(
+      (await percorrerPaginas(TEMPLATE, primeira, MAPA, porPagina, 10)).completa,
+    ).toBe(true);
+    const repetida = vi.fn(async () => pagina("a"));
+    expect(
+      (await percorrerPaginas(TEMPLATE, primeira, MAPA, repetida, 10)).completa,
+    ).toBe(true);
+  });
+
+  it("é completa quando a listagem tem uma página só", async () => {
+    const r = await percorrerPaginas(null, primeira, MAPA, vi.fn(), 10);
+    expect(r.completa).toBe(true);
+  });
+
+  it("não é completa quando o teto de páginas acaba antes da listagem", async () => {
+    let n = 0;
+    const buscar = vi.fn(async () => pagina(`novo${n++}`));
+    const r = await percorrerPaginas(TEMPLATE, primeira, MAPA, buscar, 3);
+    expect(r.completa).toBe(false);
+  });
+
+  it("não é completa quando uma página falha no meio", async () => {
+    const buscar = vi.fn(async () => {
+      throw new Error("timeout");
+    });
+    const r = await percorrerPaginas(TEMPLATE, primeira, MAPA, buscar, 10);
+    expect(r.completa).toBe(false);
+  });
+});

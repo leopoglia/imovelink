@@ -19,6 +19,7 @@ import type {
   ExtractedListing,
   ExtractionMap,
 } from "@/server/services/listing-extraction";
+import { resumoDaColeta } from "@/lib/crawler-summary";
 
 const moeda = (valor: number | null) =>
   valor === null
@@ -63,6 +64,7 @@ export default function CrawlerPage() {
   const [fonteAberta, setFonteAberta] = useState<string | null>(null);
   const dialogo = useRef<HTMLDialogElement>(null);
   const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState("");
 
   const podeGerenciar = hasPermission(currentUser.role, "crawler:manage");
   const chave = ["crawler", currentTenant.id];
@@ -133,8 +135,14 @@ export default function CrawlerPage() {
       active?: boolean;
       maxPages?: number;
     }) => enviar(body),
-    onMutate: () => setErro(""),
-    onSuccess: invalidar,
+    onMutate: () => {
+      setErro("");
+      setAviso("");
+    },
+    onSuccess: (resultado, variaveis) => {
+      invalidar();
+      if (variaveis.action === "COLLECT") setAviso(resumoDaColeta(resultado));
+    },
     onError: falhar,
   });
 
@@ -220,6 +228,11 @@ export default function CrawlerPage() {
         </form>
 
         {erro && <p className="ai-search-error">{erro}</p>}
+        {aviso && (
+          <p className="ai-search-note" role="status">
+            {aviso}
+          </p>
+        )}
 
         {analise && (
           <div className="crawler-preview">

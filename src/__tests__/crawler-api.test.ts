@@ -4,6 +4,7 @@ import { GET, POST } from "@/app/api/crawler/route";
 import { requireSession } from "@/server/services/auth.service";
 import { crawlerService } from "@/server/services/crawler.service";
 import { externalSourceRepository } from "@/server/repositories/external-source.repository";
+import { buscarListagem } from "@/server/services/crawler-fetch";
 import { SEED_TENANTS, SEED_USERS } from "@/server/seeds/seed-jaragua";
 import type { UserRole } from "@/types/domain";
 
@@ -27,7 +28,8 @@ vi.mock("@/server/repositories/external-source.repository", () => ({
     setMaxPages: vi.fn(),
     remove: vi.fn(),
     registrarColeta: vi.fn(),
-    upsertListings: vi.fn(async () => 0),
+    upsertListings: vi.fn(async (lista: unknown[]) => lista.length),
+    marcarSaidos: vi.fn(async () => 2),
   },
 }));
 
@@ -231,5 +233,84 @@ describe("Rota do crawler", () => {
   it("não devolve cache nas consultas", async () => {
     const resposta = await GET(new NextRequest("http://localhost/api/crawler"));
     expect(resposta.headers.get("Cache-Control")).toBe("no-store");
+  });
+});
+
+describe("Coleta e anúncios que saíram da origem", () => {
+  const cards = (...refs: string[]) =>
+    refs
+      .map(
+        (ref) =>
+          `<div class="ui__card"><a href="/imovel/${ref}"></a><h2>Imóvel ${ref}</h2></div>`,
+      )
+      .join("");
+  const fonteValida = (paginationTemplate: string | null) => ({
+    id: SEED_TENANTS[0].id,
+    tenantId: SEED_TENANTS[0].id,
+    name: "X",
+    listUrl: "https://exemplo.com/lista",
+    extractionMap: MAPA,
+    logoUrl: null,
+    purpose: "SALE" as const,
+    paginationTemplate,
+    maxPages: 5,
+    active: true,
+    lastCrawledAt: null,
+    lastError: null,
+    createdAt: "2026-11-01T00:00:00.000Z",
+    updatedAt: "2026-11-01T00:00:00.000Z",
+  });
+  const pagina = (html: string) => ({
+    html,
+    url: new URL("https://exemplo.com/lista"),
+  });
+  const coletar = async () => {
+    const resposta = await POST(
+      pedido({ action: "COLLECT", sourceId: SEED_TENANTS[0].id }),
+    );
+    expect(resposta.status).toBe(200);
+    return resposta.json();
+  };
+
+  it("marca os ausentes quando a listagem foi lida inteira", async () => {
+    vi.mocked(externalSourceRepository.findById).mockResolvedValue(
+      fonteValida(null),
+    );
+    vi.mocked(buscarListagem).mockResolvedValue(pagina(cards("a", "b")));
+    const resultado = await coletar();
+    expect(resultado).toMatchObject({ collected: 2, complete: true, removed: 2 });
+    expect(externalSourceRepository.marcarSaidos).toHaveBeenCalledWith(
+      SEED_TENANTS[0].id,
+      SEED_TENANTS[0].id,
+      ["https://exemplo.com/imovel/a", "https://exemplo.com/imovel/b"],
+    );
+  });
+
+  it("considera o fim da listagem quando a próxima página não existe", async () => {
+    vi.mocked(externalSourceRepository.findById).mockResolvedValue(
+      fonteValida("https://exemplo.com/lista?page={n}"),
+    );
+    vi.mocked(buscarListagem)
+      .mockResolvedValueOnce(pagina(cards("a")))
+      .mockRejectedValueOnce(
+        Object.assign(new Error("404"), { code: "NOT_FOUND" }),
+      );
+    const resultado = await coletar();
+    expect(resultado).toMatchObject({ complete: true });
+    expect(externalSourceRepository.marcarSaidos).toHaveBeenCalled();
+  });
+
+  it("não marca nada quando uma página falha no meio", async () => {
+    vi.mocked(externalSourceRepository.findById).mockResolvedValue(
+      fonteValida("https://exemplo.com/lista?page={n}"),
+    );
+    vi.mocked(buscarListagem)
+      .mockResolvedValueOnce(pagina(cards("a")))
+      .mockRejectedValueOnce(
+        Object.assign(new Error("lento"), { code: "TIMEOUT" }),
+      );
+    const resultado = await coletar();
+    expect(resultado).toMatchObject({ complete: false, removed: 0 });
+    expect(externalSourceRepository.marcarSaidos).not.toHaveBeenCalled();
   });
 });

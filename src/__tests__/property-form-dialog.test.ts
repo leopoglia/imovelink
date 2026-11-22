@@ -340,6 +340,7 @@ describe("Trazer anúncio de outro site para a carteira", () => {
       addressNeighborhood: "Czerniewicz",
       addressStreet: "",
       images: [anuncio.imageUrl],
+      sourceListingUrl: anuncio.url,
     });
   });
 

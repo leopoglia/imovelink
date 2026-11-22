@@ -93,13 +93,18 @@ function paraRegistro(
 }
 
 /** Busca uma página extra; devolve null quando ela não existe ou falha. */
+/**
+ * Página que não existe (404) encerra a listagem; qualquer outra falha é
+ * propagada, para a coleta não tratar uma leitura interrompida como completa.
+ */
 function buscadorDePagina(signal?: AbortSignal) {
   return async (alvo: string): Promise<string | null> => {
     try {
       const { html } = await buscarListagem(alvo, signal);
       return html;
-    } catch {
-      return null;
+    } catch (erro) {
+      if ((erro as { code?: unknown })?.code === "NOT_FOUND") return null;
+      throw erro;
     }
   };
 }
@@ -197,7 +202,7 @@ export class CrawlerService {
         fonte.listUrl,
         signal,
       );
-      const { anuncios, paginas } = await percorrerPaginas(
+      const { anuncios, paginas, completa } = await percorrerPaginas(
         fonte.paginationTemplate,
         { url: url.toString(), html },
         mapa.data,
@@ -223,8 +228,21 @@ export class CrawlerService {
           paraRegistro(anuncio, sourceId, tenantId, fonte.purpose),
         ),
       );
+      // Só uma leitura completa prova que um anúncio ausente saiu da origem.
+      const removidos = completa
+        ? await externalSourceRepository.marcarSaidos(
+            tenantId,
+            sourceId,
+            anuncios.map((anuncio) => anuncio.url),
+          )
+        : 0;
       await externalSourceRepository.registrarColeta(tenantId, sourceId, null);
-      return { collected: gravados, pages: paginas };
+      return {
+        collected: gravados,
+        pages: paginas,
+        complete: completa,
+        removed: removidos,
+      };
     } catch (erro) {
       if (erro instanceof CrawlerError) throw erro;
       const codigo =

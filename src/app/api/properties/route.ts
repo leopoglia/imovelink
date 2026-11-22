@@ -20,7 +20,7 @@ async function handleGET(req: NextRequest) {
     // portfólio: o corretor precisa deles para atender o cliente.
     const includeExternal = searchParams.get("includeExternal") === "true";
 
-    const [properties, auditLogs, externalListings, externalSources] =
+    const [carteira, auditLogs, anunciosExternos, externalSources, saidos] =
       await Promise.all([
         propertyService.listProperties(tenantId),
         includeAudit ? propertyService.listAuditLogs(tenantId) : undefined,
@@ -30,7 +30,23 @@ async function handleGET(req: NextRequest) {
         includeExternal
           ? externalSourceRepository.listByTenant(tenantId)
           : undefined,
+        externalSourceRepository.urlsQueSairam(tenantId),
       ]);
+
+    // Imóvel trazido de um anúncio que saiu da origem: o corretor confere se
+    // foi vendido. A marca é só um aviso; o status continua sendo dele.
+    const properties = carteira.map((imovel) =>
+      imovel.sourceListingUrl && saidos.has(imovel.sourceListingUrl)
+        ? { ...imovel, sourceListingRemoved: true }
+        : imovel,
+    );
+    // O anúncio que já virou imóvel da carteira não aparece de novo como externo.
+    const trazidos = new Set(
+      carteira.map((imovel) => imovel.sourceListingUrl).filter(Boolean),
+    );
+    const externalListings = anunciosExternos?.filter(
+      (anuncio) => !trazidos.has(anuncio.url),
+    );
 
     return NextResponse.json(
       {

@@ -289,7 +289,13 @@ export function PropertyFormDialog({
     const resposta = await apiFetch("/api/properties", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...paraApi(campos), purpose: "SALE" }),
+      body: JSON.stringify({
+        ...paraApi(campos),
+        purpose: "SALE",
+        ...(modo.tipo === "importar"
+          ? { sourceListingUrl: modo.anuncio.url }
+          : {}),
+      }),
     });
     const dados = await resposta.json().catch(() => ({}));
     if (!resposta.ok)

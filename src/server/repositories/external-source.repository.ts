@@ -163,8 +163,8 @@ export class ExternalSourceRepository {
     if (isPostgresConfigured()) {
       const sql = getPostgres();
       const rows = sourceId
-        ? await sql`SELECT * FROM imovelink.external_listings WHERE tenant_id = ${tenantId} AND source_id = ${sourceId} AND (price IS NULL OR price >= ${PRECO_MINIMO_DE_VENDA}) ORDER BY last_seen_at DESC`
-        : await sql`SELECT * FROM imovelink.external_listings WHERE tenant_id = ${tenantId} AND (price IS NULL OR price >= ${PRECO_MINIMO_DE_VENDA}) ORDER BY last_seen_at DESC`;
+        ? await sql`SELECT * FROM imovelink.external_listings WHERE tenant_id = ${tenantId} AND source_id = ${sourceId} AND removed_at IS NULL AND (price IS NULL OR price >= ${PRECO_MINIMO_DE_VENDA}) ORDER BY last_seen_at DESC`
+        : await sql`SELECT * FROM imovelink.external_listings WHERE tenant_id = ${tenantId} AND removed_at IS NULL AND (price IS NULL OR price >= ${PRECO_MINIMO_DE_VENDA}) ORDER BY last_seen_at DESC`;
       return rows.map((row) => domainRecord<ExternalListing>(row));
     }
     return getDb()
@@ -172,6 +172,7 @@ export class ExternalSourceRepository {
         (anuncio) =>
           anuncio.tenantId === tenantId &&
           (!sourceId || anuncio.sourceId === sourceId) &&
+          !anuncio.removedAt &&
           pareceVenda(anuncio),
       )
       .sort((a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt));
@@ -210,7 +211,8 @@ export class ExternalSourceRepository {
             image_url = EXCLUDED.image_url,
             purpose = EXCLUDED.purpose,
             content_hash = EXCLUDED.content_hash,
-            last_seen_at = NOW()`;
+            last_seen_at = NOW(),
+            removed_at = NULL`;
       }
       return anuncios.length;
     }
@@ -225,10 +227,63 @@ export class ExternalSourceRepository {
           // A primeira vez que o imóvel foi visto não se perde ao reencontrá-lo.
           firstSeenAt: existente.firstSeenAt,
           lastSeenAt: new Date().toISOString(),
+          // Reapareceu na origem: deixa de contar como saído.
+          removedAt: null,
         });
       else db.externalListings.push(anuncio);
     }
     return anuncios.length;
+  }
+
+  /**
+   * Marca como saídos da origem os anúncios da fonte que não estão entre os
+   * vistos. Só deve ser chamado depois de uma coleta que leu a listagem toda.
+   */
+  async marcarSaidos(
+    tenantId: string,
+    sourceId: string,
+    urlsVistas: string[],
+  ): Promise<number> {
+    if (isPostgresConfigured()) {
+      const sql = getPostgres();
+      const rows = await sql`UPDATE imovelink.external_listings
+        SET removed_at = NOW()
+        WHERE tenant_id = ${tenantId} AND source_id = ${sourceId}
+          AND removed_at IS NULL AND NOT (url = ANY(${urlsVistas}))
+        RETURNING id`;
+      return rows.length;
+    }
+    const vistas = new Set(urlsVistas);
+    const agora = new Date().toISOString();
+    let marcados = 0;
+    for (const anuncio of getDb().externalListings) {
+      if (
+        anuncio.tenantId === tenantId &&
+        anuncio.sourceId === sourceId &&
+        !anuncio.removedAt &&
+        !vistas.has(anuncio.url)
+      ) {
+        anuncio.removedAt = agora;
+        marcados++;
+      }
+    }
+    return marcados;
+  }
+
+  /** Endereços dos anúncios da imobiliária que saíram da origem. */
+  async urlsQueSairam(tenantId: string): Promise<Set<string>> {
+    if (isPostgresConfigured()) {
+      const rows =
+        await getPostgres()`SELECT url FROM imovelink.external_listings WHERE tenant_id = ${tenantId} AND removed_at IS NOT NULL`;
+      return new Set(rows.map((row) => String(row.url)));
+    }
+    return new Set(
+      getDb()
+        .externalListings.filter(
+          (anuncio) => anuncio.tenantId === tenantId && anuncio.removedAt,
+        )
+        .map((anuncio) => anuncio.url),
+    );
   }
 }
 
