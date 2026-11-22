@@ -40,6 +40,14 @@ export interface TenantBranding {
   email: string;
   address: string;
   logoText?: string;
+  /** Título grande da vitrine pública. Vazio usa "Imóveis à venda em <cidade>". */
+  headline?: string;
+  /** Texto "Sobre a imobiliária" mostrado na vitrine. */
+  about?: string;
+  /** Foto de capa da vitrine, por link. */
+  coverImageUrl?: string;
+  /** Imóveis que o gestor escondeu da vitrine pública. */
+  hiddenPropertyIds?: string[];
 }
 
 export interface Tenant {

@@ -80,6 +80,45 @@ const updateSchema = z.discriminatedUnion("section", [
         .strict(),
     })
     .strict(),
+  z
+    .object({
+      ...identity,
+      section: z.literal("vitrine"),
+      values: z
+        .object({
+          headline: z
+            .string()
+            .trim()
+            .max(90, "O título deve ter até 90 caracteres."),
+          tagline: z
+            .string()
+            .trim()
+            .max(160, "O subtítulo deve ter até 160 caracteres."),
+          about: z
+            .string()
+            .trim()
+            .max(800, "O texto sobre a imobiliária deve ter até 800 caracteres."),
+          coverImageUrl: z
+            .string()
+            .trim()
+            .max(1000, "O link da capa é longo demais.")
+            .refine(
+              (valor) => valor === "" || /^https?:\/\/\S+$/i.test(valor),
+              "Use um link de imagem que comece com https://.",
+            ),
+          primaryColor: z
+            .string()
+            .trim()
+            .regex(/^#[0-9a-f]{6}$/i, "Escolha uma cor válida."),
+          logoText: z
+            .string()
+            .trim()
+            .max(3, "A sigla deve ter até 3 letras."),
+          hiddenPropertyIds: z.array(z.string().trim().min(1).max(64)).max(2000),
+        })
+        .strict(),
+    })
+    .strict(),
 ]);
 
 export class SettingsError extends Error {
@@ -137,14 +176,28 @@ export const settingsService = {
         403,
       );
     }
-    const { name, creci, city, state, phone, email, address } = payload.values;
-    const updated = await tenantRepository.updateTenant(tenant.id, {
-      name,
-      creci,
-      city,
-      state,
-      branding: { ...tenant.branding, phone, email, address },
-    });
+    const updated =
+      payload.section === "vitrine"
+        ? await tenantRepository.updateTenant(tenant.id, {
+            branding: {
+              ...tenant.branding,
+              ...payload.values,
+              logoText: payload.values.logoText.toUpperCase(),
+              hiddenPropertyIds: [...new Set(payload.values.hiddenPropertyIds)],
+            },
+          })
+        : await tenantRepository.updateTenant(tenant.id, {
+            name: payload.values.name,
+            creci: payload.values.creci,
+            city: payload.values.city,
+            state: payload.values.state,
+            branding: {
+              ...tenant.branding,
+              phone: payload.values.phone,
+              email: payload.values.email,
+              address: payload.values.address,
+            },
+          });
     if (!updated) throw new SettingsError("Imobiliária não encontrada.", 404);
     return { user, tenant: updated };
   },

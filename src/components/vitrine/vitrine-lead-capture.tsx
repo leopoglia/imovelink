@@ -1,22 +1,39 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { CheckCircle, Search } from "iconoir-react";
-import { HybridSearchResultItem } from "@/types/domain";
+import type { HybridSearchResultItem, Property } from "@/types/domain";
+
+const EVENTO_INTERESSE = "vitrine:interesse";
+
+/** O card avisa o formulário de qual imóvel o visitante quer saber mais. */
+export function pedirInteresse(imovel: Pick<Property, "code" | "title">) {
+  window.dispatchEvent(
+    new CustomEvent(EVENTO_INTERESSE, {
+      detail: `Tenho interesse no imóvel ${imovel.code}: ${imovel.title}.`,
+    }),
+  );
+}
 
 export function VitrineLeadCapture({ tenantId }: { tenantId: string }) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [desire, setDesire] = useState(
-    "Procuro casa com quintal arborizado, 3 quartos e espaço gourmet no Centro ou Vila Nova até 950 mil",
-  );
+  const [desire, setDesire] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [submittedResult, setSubmittedResult] = useState<{
-    aiScore: number;
-    matches: HybridSearchResultItem[];
-  } | null>(null);
+  const [matches, setMatches] = useState<HybridSearchResultItem[] | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const preencher = (evento: Event) => {
+      setDesire((evento as CustomEvent<string>).detail);
+      setMatches(null);
+    };
+    window.addEventListener(EVENTO_INTERESSE, preencher);
+    return () => window.removeEventListener(EVENTO_INTERESSE, preencher);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,10 +58,7 @@ export function VitrineLeadCapture({ tenantId }: { tenantId: string }) {
         setError(data.error ?? "Não foi possível enviar seu contato.");
         return;
       }
-      setSubmittedResult({
-        aiScore: data.lead?.aiScore ?? 0,
-        matches: data.matchedProperties ?? [],
-      });
+      setMatches(data.matchedProperties ?? []);
     } catch {
       setError("Não foi possível enviar seu contato. Tente novamente.");
     } finally {
@@ -52,106 +66,104 @@ export function VitrineLeadCapture({ tenantId }: { tenantId: string }) {
     }
   };
 
-  return (
-    <div className="rounded-2xl bg-white border border-slate-200/80 p-6 lg:p-8 space-y-5">
-      <div className="space-y-1">
-        <h2 className="text-xl font-semibold text-slate-900">Buscar imóveis</h2>
-      </div>
-
-      {!submittedResult ? (
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-            <input
-              type="text"
-              aria-label="Seu nome"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Seu nome *"
-              className="field-control"
-            />
-            <input
-              type="text"
-              aria-label="Seu WhatsApp"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Seu WhatsApp (47) 99999-9999 *"
-              className="field-control"
-            />
-            <input
-              type="email"
-              aria-label="Seu e-mail (opcional)"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Seu e-mail (opcional)"
-              className="field-control"
-            />
-          </div>
-
-          <textarea
-            rows={3}
-            aria-label="Descreva o imóvel que você procura"
-            required
-            value={desire}
-            onChange={(e) => setDesire(e.target.value)}
-            className="field-control"
-            placeholder="Ex: Quero uma casa com quintal arborizado, espaço gourmet e 3 suítes até 950 mil..."
-          />
-
-          {error && (
-            <p role="alert" className="text-xs text-red-600">
-              {error}
+  if (matches)
+    return (
+      <div className="vitrine-formulario" role="status">
+        <p className="vitrine-formulario-sucesso">
+          <CheckCircle aria-hidden="true" width={20} height={20} />
+          Recebemos seu pedido, {name.split(" ")[0]}. Um corretor vai falar com
+          você em breve.
+        </p>
+        {matches.length > 0 && (
+          <>
+            <p className="vitrine-formulario-dica">
+              Enquanto isso, estes imóveis combinam com o que você descreveu:
             </p>
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="text-[11px] text-slate-400">
-              Seus dados são protegidos conforme a LGPD (Lei nº 13.709/2018).
-            </span>
-            <button type="submit" disabled={loading} className="button-primary">
-              <Search aria-hidden="true" className="w-3.5 h-3.5" />
-              {loading ? "Buscando..." : "Ver Imóveis Compatíveis"}
-            </button>
-          </div>
-        </form>
-      ) : (
-        <div className="p-5 rounded-xl bg-brand-50/50 border border-brand-100 space-y-4">
-          <div className="flex items-center gap-2 text-brand-800 font-medium text-sm">
-            <CheckCircle
-              aria-hidden="true"
-              className="w-4 h-4 text-brand-600"
-            />
-            <span>
-              Encontramos os imóveis mais compatíveis para você (Score IA:{" "}
-              {submittedResult.aiScore}/100):
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {submittedResult.matches.map((m) => (
-              <div
-                key={m.property.id}
-                className="p-3.5 rounded-xl bg-white border border-slate-200/80 space-y-1"
-              >
-                <div className="flex justify-between text-xs font-semibold">
-                  <span className="text-slate-700">{m.property.code}</span>
-                  <span className="text-brand-600">
-                    {m.hybridScore}% Compatível
+            <ul className="vitrine-sugestoes">
+              {matches.map((m) => (
+                <li key={m.property.id}>
+                  <a href={`#${m.property.code}`}>
+                    <strong>{m.property.title}</strong>
+                    <span>
+                      {m.property.addressNeighborhood} · R${" "}
+                      {m.property.price.toLocaleString("pt-BR")}
+                    </span>
+                  </a>
+                  <span className="vitrine-sugestao-nota">
+                    {m.hybridScore}% compatível
                   </span>
-                </div>
-                <p className="text-xs font-medium text-slate-900 truncate">
-                  {m.property.title}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {m.property.addressNeighborhood} • R${" "}
-                  {m.property.price.toLocaleString("pt-BR")}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+    );
+
+  return (
+    <form onSubmit={handleSubmit} className="vitrine-formulario">
+      <label className="vitrine-campo vitrine-campo-inteiro">
+        <span>O que você procura? *</span>
+        <textarea
+          rows={4}
+          required
+          value={desire}
+          onChange={(e) => setDesire(e.target.value)}
+          className="field-control"
+          placeholder="Ex.: casa com quintal, 3 quartos e espaço gourmet no Centro ou na Vila Nova, até R$ 950 mil"
+        />
+      </label>
+      <label className="vitrine-campo">
+        <span>Seu nome *</span>
+        <input
+          type="text"
+          required
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="field-control"
+        />
+      </label>
+      <label className="vitrine-campo">
+        <span>Telefone *</span>
+        <input
+          type="tel"
+          required
+          autoComplete="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="(47) 99999-9999"
+          className="field-control"
+        />
+      </label>
+      <label className="vitrine-campo vitrine-campo-inteiro">
+        <span>E-mail (opcional)</span>
+        <input
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="field-control"
+        />
+      </label>
+
+      {error && (
+        <p role="alert" className="vitrine-formulario-erro">
+          {error}
+        </p>
       )}
-    </div>
+
+      <div className="vitrine-formulario-rodape">
+        <span>Seus dados são protegidos conforme a LGPD.</span>
+        <button
+          type="submit"
+          disabled={loading}
+          className="vitrine-botao vitrine-botao-cheio"
+        >
+          <Search aria-hidden="true" width={16} height={16} />
+          {loading ? "Buscando…" : "Encontrar imóveis"}
+        </button>
+      </div>
+    </form>
   );
 }

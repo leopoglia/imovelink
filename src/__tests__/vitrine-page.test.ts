@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import VitrinePage from "@/app/vitrine/[slug]/page";
 import { tenantRepository } from "@/server/repositories/tenant.repository";
 import { propertyService } from "@/server/services/property.service";
@@ -67,7 +67,13 @@ afterEach(() => {
 describe("Vitrine pública da imobiliária", () => {
   it("mostra a imobiliária e só os imóveis disponíveis ou reservados", async () => {
     await abrirVitrine();
-    expect(screen.getByRole("heading", { name: tenant.name })).toBeTruthy();
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "Imóveis à venda em Jaraguá do Sul",
+      }),
+    ).toBeTruthy();
+    expect(screen.getAllByText(tenant.name).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Casa disponível").length).toBeGreaterThan(0);
     expect(
       screen.getAllByText("Apartamento reservado").length,
@@ -108,6 +114,65 @@ describe("Vitrine pública da imobiliária", () => {
       'Casa ampla</script><script>alert("x")</script>',
     );
     expect(container.querySelectorAll("script")).toHaveLength(1);
+  });
+
+  it("é pública: não tem botão de volta para o painel", async () => {
+    const { container } = await abrirVitrine();
+    expect(screen.queryByText("Painel do Corretor")).toBeNull();
+    const links = [...container.querySelectorAll("a")].map((a) =>
+      a.getAttribute("href"),
+    );
+    expect(links).not.toContain("/");
+    expect(links.some((href) => href?.startsWith("/imoveis"))).toBe(false);
+  });
+
+  it("usa o título, a capa e o texto que o gestor configurou", async () => {
+    vi.mocked(tenantRepository.findTenantBySlug).mockResolvedValue({
+      ...tenant,
+      branding: {
+        ...tenant.branding,
+        headline: "Seu próximo endereço",
+        coverImageUrl: "https://example.com/capa.jpg",
+        about: "Atendemos desde 2010.",
+      },
+    });
+    const { container } = await abrirVitrine();
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Seu próximo endereço" }),
+    ).toBeTruthy();
+    expect(container.querySelector(".vitrine-capa-foto")?.getAttribute("src")).toBe(
+      "https://example.com/capa.jpg",
+    );
+    expect(screen.getByText("Atendemos desde 2010.")).toBeTruthy();
+  });
+
+  it("não leva o visitante ao WhatsApp: o interesse vira contato no formulário", async () => {
+    const { container } = await abrirVitrine();
+    const links = [...container.querySelectorAll("a")].map(
+      (a) => a.getAttribute("href") ?? "",
+    );
+    expect(links.some((href) => href.includes("wa.me"))).toBe(false);
+    expect(screen.queryByText(/whatsapp/i, { selector: "a, a *" })).toBeNull();
+
+    const interesse = screen.getByRole("link", {
+      name: "Tenho interesse em Casa disponível",
+    });
+    expect(interesse.getAttribute("href")).toBe("#busca");
+    fireEvent.click(interesse);
+    expect(
+      (screen.getByLabelText("O que você procura? *") as HTMLTextAreaElement)
+        .value,
+    ).toBe("Tenho interesse no imóvel IMV-201: Casa disponível.");
+  });
+
+  it("não mostra os imóveis que o gestor escondeu", async () => {
+    vi.mocked(tenantRepository.findTenantBySlug).mockResolvedValue({
+      ...tenant,
+      branding: { ...tenant.branding, hiddenPropertyIds: ["p2"] },
+    });
+    const { container } = await abrirVitrine();
+    expect(screen.queryByText("Apartamento reservado")).toBeNull();
+    expect(microdados(container).dados["@graph"]).toHaveLength(2);
   });
 
   it("responde página não encontrada para uma imobiliária inexistente", async () => {
