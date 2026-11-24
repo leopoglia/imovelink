@@ -274,8 +274,9 @@ describe("Coleta e anúncios que saíram da origem", () => {
 
   it("marca os ausentes quando a listagem foi lida inteira", async () => {
     vi.mocked(externalSourceRepository.findById).mockResolvedValue(
-      fonteValida(null),
+      fonteValida("https://exemplo.com/lista?page={n}"),
     );
+    // A página 2 repete a 1: a listagem acabou antes do teto.
     vi.mocked(buscarListagem).mockResolvedValue(pagina(cards("a", "b")));
     const resultado = await coletar();
     expect(resultado).toMatchObject({ collected: 2, complete: true, removed: 2 });
@@ -298,6 +299,16 @@ describe("Coleta e anúncios que saíram da origem", () => {
     const resultado = await coletar();
     expect(resultado).toMatchObject({ complete: true });
     expect(externalSourceRepository.marcarSaidos).toHaveBeenCalled();
+  });
+
+  it("não marca nada numa fonte sem paginação, como a página inicial de um site", async () => {
+    vi.mocked(externalSourceRepository.findById).mockResolvedValue(
+      fonteValida(null),
+    );
+    vi.mocked(buscarListagem).mockResolvedValue(pagina(cards("a", "b")));
+    const resultado = await coletar();
+    expect(resultado).toMatchObject({ collected: 2, complete: false, removed: 0 });
+    expect(externalSourceRepository.marcarSaidos).not.toHaveBeenCalled();
   });
 
   it("não marca nada quando uma página falha no meio", async () => {

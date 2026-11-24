@@ -168,9 +168,9 @@ describe("Leitura completa da listagem", () => {
     ).toBe(true);
   });
 
-  it("é completa quando a listagem tem uma página só", async () => {
+  it("não é completa sem padrão de paginação, porque a página pode ser só uma seleção", async () => {
     const r = await percorrerPaginas(null, primeira, MAPA, vi.fn(), 10);
-    expect(r.completa).toBe(true);
+    expect(r.completa).toBe(false);
   });
 
   it("não é completa quando o teto de páginas acaba antes da listagem", async () => {

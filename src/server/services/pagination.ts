@@ -72,7 +72,10 @@ export async function descobrirPaginacao(
  *
  * `completa` diz se a listagem foi lida até o fim. Ela é falsa quando o teto
  * de páginas acabou antes da listagem ou quando uma página falhou: nesses
- * casos, um anúncio ausente pode só não ter sido lido.
+ * casos, um anúncio ausente pode só não ter sido lido. Também é falsa sem
+ * padrão de paginação: uma página única pode ser uma seleção (como a página
+ * inicial de um site, que mostra destaques), e não há como saber se ela
+ * traz todos os anúncios.
  */
 export async function percorrerPaginas(
   template: string | null,
@@ -92,7 +95,7 @@ export async function percorrerPaginas(
     vistas.set(anuncio.url, anuncio);
 
   if (!template)
-    return { anuncios: [...vistas.values()], paginas: 1, completa: true };
+    return { anuncios: [...vistas.values()], paginas: 1, completa: false };
 
   let paginas = 1;
   let completa = false;

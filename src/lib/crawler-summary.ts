@@ -8,7 +8,7 @@ export function resumoDaColeta(resultado: {
   const base =
     coletados === 1 ? "1 anúncio coletado." : `${coletados} anúncios coletados.`;
   if (!resultado.complete)
-    return `${base} A listagem não foi lida até o fim, então anúncios que saíram do site não foram conferidos.`;
+    return `${base} Não deu para conferir se algum anúncio saiu do site: a listagem não foi lida até o fim ou não tem páginas numeradas.`;
   const saidos = resultado.removed ?? 0;
   if (saidos === 0) return `${base} Nenhum anúncio saiu do site.`;
   return saidos === 1
