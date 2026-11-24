@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "demo": "vitest run src/__tests__/demonstracao-saiu-da-origem.test.ts --reporter=verbose",
     "coverage": "vitest run --coverage",
     "db:check": "node --env-file-if-exists=.env.local scripts/database.mjs check",
     "db:migrate": "node --env-file-if-exists=.env.local scripts/database.mjs migrate",
