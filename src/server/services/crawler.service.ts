@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { ExternalListing, UserRole } from "@/types/domain";
 import { hasPermission } from "@/lib/auth/rbac";
+import { ehLinkHttp } from "@/lib/safe-url";
 import { externalSourceRepository } from "@/server/repositories/external-source.repository";
 import { buscarListagem } from "./crawler-fetch";
 import { descobrirMapaExtracao } from "./extraction-discovery";
@@ -33,7 +34,14 @@ export const novaFonteSchema = z.object({
   name: z.string().trim().min(2).max(120),
   listUrl: z.string().trim().url().max(2000),
   extractionMap: extractionMapSchema,
-  logoUrl: z.string().trim().url().max(2000).nullable().default(null),
+  // Só http(s): o logo vira <img> nas telas do portal.
+  logoUrl: z
+    .string()
+    .trim()
+    .max(2000)
+    .refine(ehLinkHttp, "Use um link de imagem que comece com https://.")
+    .nullable()
+    .default(null),
   purpose: z.enum(["SALE", "RENT"]).nullable().default(null),
   paginationTemplate: z.string().trim().max(2100).nullable().default(null),
   maxPages: z.number().int().min(1).max(200).default(5),

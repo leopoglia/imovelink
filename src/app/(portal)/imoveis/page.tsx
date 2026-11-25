@@ -22,6 +22,7 @@ import {
   PropertyFormDialog,
 } from "@/components/property-form-dialog";
 import { BAIRROS_JARAGUA } from "@/lib/geo";
+import { ehLinkHttp } from "@/lib/safe-url";
 import { PropertyFiltersDialog } from "@/components/property-filters-dialog";
 import {
   FILTROS_PADRAO,
@@ -415,7 +416,7 @@ export default function ImoveisPortfolioPage() {
                   )}
                   <div className="absolute top-3 left-3">
                     <span className="px-2.5 py-1 rounded-lg bg-white/95 text-[10px] font-semibold text-slate-700 flex items-center gap-1.5">
-                      {fontePorId.get(anuncio.sourceId)?.logoUrl && (
+                      {ehLinkHttp(fontePorId.get(anuncio.sourceId)?.logoUrl) && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={fontePorId.get(anuncio.sourceId)!.logoUrl!}

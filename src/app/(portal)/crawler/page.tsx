@@ -20,6 +20,7 @@ import type {
   ExtractionMap,
 } from "@/server/services/listing-extraction";
 import { resumoDaColeta } from "@/lib/crawler-summary";
+import { ehLinkHttp } from "@/lib/safe-url";
 
 const moeda = (valor: number | null) =>
   valor === null
@@ -289,10 +290,10 @@ export default function CrawlerPage() {
               </table>
             </div>
             <div className="crawler-form">
-              {logoUrl && (
+              {ehLinkHttp(logoUrl) && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={logoUrl}
+                  src={new URL(logoUrl.trim()).href}
                   alt=""
                   className="crawler-logo-preview"
                   onError={() => setLogoUrl("")}
@@ -388,7 +389,7 @@ export default function CrawlerPage() {
                     setFonteAberta(fonteAberta === fonte.id ? null : fonte.id)
                   }
                 >
-                  {fonte.logoUrl ? (
+                  {fonte.logoUrl && ehLinkHttp(fonte.logoUrl) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={fonte.logoUrl}

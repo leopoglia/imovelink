@@ -7,6 +7,7 @@ import {
 import { CrawlerError, crawlerService } from "@/server/services/crawler.service";
 import { extractionMapSchema } from "@/server/services/listing-extraction";
 import { observarRota } from "@/server/observability/metrics";
+import { ehLinkHttp } from "@/lib/safe-url";
 
 const schema = z.discriminatedUnion("action", [
   z
@@ -21,7 +22,13 @@ const schema = z.discriminatedUnion("action", [
       name: z.string().trim().min(2).max(120),
       listUrl: z.string().trim().url().max(2000),
       extractionMap: extractionMapSchema,
-      logoUrl: z.string().trim().url().max(2000).nullable().optional(),
+      logoUrl: z
+        .string()
+        .trim()
+        .max(2000)
+        .refine(ehLinkHttp, "Use um link de imagem que comece com https://.")
+        .nullable()
+        .optional(),
       purpose: z.enum(["SALE", "RENT"]).nullable().optional(),
       paginationTemplate: z.string().trim().max(2100).nullable().optional(),
       maxPages: z.number().int().min(1).max(200).optional(),
