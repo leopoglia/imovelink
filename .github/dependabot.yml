@@ -1,0 +1,20 @@
+# Atualizações de dependências: o Dependabot abre pull requests com as
+# versões novas, e cada uma passa pelo mesmo CI (testes, cobertura e Sonar)
+# antes de qualquer merge.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Atualizações menores e de correção chegam juntas num PR só.
+      dependencias-menores:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly

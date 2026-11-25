@@ -1,0 +1,40 @@
+name: CodeQL
+
+# Análise de segurança do código: procura padrões de vulnerabilidade
+# (injeção, XSS, SSRF, segredos expostos) e publica os alertas na aba
+# Security do repositório.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Toda segunda-feira, para pegar regras novas mesmo sem commits.
+    - cron: "30 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Análise CodeQL (TypeScript)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Inicializar o CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - name: Analisar
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
