@@ -290,7 +290,7 @@ export default function BuscaIAPage() {
             {response.interpretation?.mode === "ai" && (
               <p className="ai-search-note">Busca interpretada com IA</p>
             )}
-            {response.results.length === 0 ? (
+            {totalDeResultados === 0 ? (
               <div className="ai-search-empty">
                 <AreaSearch width={28} height={28} aria-hidden="true" />
                 <h3>Nenhum imóvel atende a essa busca.</h3>
